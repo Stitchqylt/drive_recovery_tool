@@ -23,12 +23,6 @@
       box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
     }
 
-    .sub-card {
-      background: #FFFFFF;
-      border: 1px solid #E2E8F0;
-      border-radius: 16px;
-    }
-
     .icon-box-purple { background: #EEF2FF; color: #4F46E5; }
     .icon-box-blue { background: #EFF6FF; color: #3B82F6; }
     .icon-box-green { background: #ECFDF5; color: #10B981; }
@@ -59,7 +53,7 @@
 </head>
 <body class="text-slate-800 antialiased p-4 sm:p-6 lg:p-8 flex items-center justify-center min-h-screen">
 
-  <div class="w-full max-w-6xl space-y-4">
+  <div class="w-full max-w-5xl space-y-4">
     
     <!-- Top Global Header -->
     <header class="flex items-center justify-between px-2 py-1">
@@ -97,49 +91,50 @@
       </div>
     </header>
 
-    <!-- Top Main Card (3 Columns: Progress Info | Circular Ring | Health Panel) -->
-    <div class="app-card p-6 sm:p-7 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+    <!-- Top Main Card (Clean 2-Column Progress & Circular Ring) -->
+    <div class="app-card p-6 sm:p-7 grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
       
       <!-- Left Column: Rescue Progress Details -->
-      <div class="lg:col-span-4 space-y-4">
+      <div class="md:col-span-7 space-y-4">
         <div>
           <h2 class="text-base font-bold text-slate-900">Rescue Progress</h2>
           <p class="text-xs text-slate-500 mt-1 leading-relaxed">
-            Scanning drive for recoverable files.<br>This may take a while depending on the drive size and condition.
+            Scanning drive for recoverable files. Directly reading healthy clusters and zero-filling unreadable blocks without freezing Windows.
           </p>
         </div>
 
-        <div class="space-y-3 pt-1">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
           <!-- Elapsed Time -->
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg icon-box-purple flex items-center justify-center shrink-0">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <circle cx="11" cy="11" r="8"></circle>
                 <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
               </svg>
             </div>
             <div>
-              <div class="text-[11px] font-medium text-slate-400">Elapsed Time</div>
+              <div class="text-[10px] font-semibold text-slate-400">Elapsed</div>
               <div id="dispElapsed" class="text-xs font-bold text-slate-800 font-mono">00:00:00</div>
             </div>
           </div>
 
           <!-- Estimated Time -->
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg icon-box-purple flex items-center justify-center shrink-0">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
             </div>
             <div>
-              <div class="text-[11px] font-medium text-slate-400">Estimated Time</div>
+              <div class="text-[10px] font-semibold text-slate-400">Remaining</div>
               <div id="dispEstimated" class="text-xs font-bold text-slate-800">Calculating...</div>
             </div>
           </div>
 
           <!-- Scan Method -->
-          <div class="flex items-center gap-3">
-            <div class="w-9 h-9 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+          <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg icon-box-purple flex items-center justify-center shrink-0">
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
                 <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
@@ -148,16 +143,16 @@
               </svg>
             </div>
             <div>
-              <div class="text-[11px] font-medium text-slate-400">Scan Method</div>
-              <div class="text-xs font-bold text-slate-800">Deep Scan (Thorough)</div>
+              <div class="text-[10px] font-semibold text-slate-400">Method</div>
+              <div class="text-xs font-bold text-slate-800">Direct I/O</div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Middle Column: Segmented Circular Radial Gauge -->
-      <div class="lg:col-span-4 flex flex-col items-center justify-center py-2">
-        <div class="relative w-48 h-48 flex items-center justify-center">
+      <!-- Right Column: Segmented Circular Radial Gauge -->
+      <div class="md:col-span-5 flex flex-col items-center justify-center py-2">
+        <div class="relative w-44 h-44 flex items-center justify-center">
           <svg class="w-full h-full" viewBox="0 0 160 160">
             <!-- Background Track -->
             <circle cx="80" cy="80" r="64" fill="transparent" stroke="#E2E8F0" stroke-width="8" stroke-dasharray="8 4" />
@@ -173,7 +168,7 @@
         </div>
 
         <!-- Progress Legends -->
-        <div class="flex items-center gap-4 text-xs font-semibold text-slate-500 mt-3">
+        <div class="flex items-center gap-4 text-xs font-semibold text-slate-500 mt-2">
           <div class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-[#4F46E5]"></span>
             <span>Scanned</span>
@@ -185,83 +180,6 @@
           <div class="flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-[#CBD5E1]"></span>
             <span>Pending</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right Column: Drive Health & S.M.A.R.T. -->
-      <div class="lg:col-span-4 space-y-4">
-        <div class="flex items-center justify-between">
-          <h2 class="text-base font-bold text-slate-900">Drive Health</h2>
-          <span id="healthVerdictPill" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#059669]">Good</span>
-        </div>
-
-        <div class="space-y-2.5">
-          <!-- Temperature -->
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-2.5 text-slate-600">
-              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
-                </svg>
-              </span>
-              <span>Temperature</span>
-            </div>
-            <span id="valTemp" class="font-bold text-[#059669]">32 °C</span>
-          </div>
-
-          <!-- Reallocated Sectors -->
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-2.5 text-slate-600">
-              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                </svg>
-              </span>
-              <span>Reallocated Sectors</span>
-            </div>
-            <span id="valRealloc" class="font-bold text-[#059669]">0</span>
-          </div>
-
-          <!-- Pending Sectors -->
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-2.5 text-slate-600">
-              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-              </span>
-              <span>Pending Sectors</span>
-            </div>
-            <span id="valPending" class="font-bold text-[#059669]">0</span>
-          </div>
-
-          <!-- Power On Hours -->
-          <div class="flex items-center justify-between text-xs">
-            <div class="flex items-center gap-2.5 text-slate-600">
-              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
-                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-                  <line x1="12" y1="2" x2="12" y2="12"></line>
-                </svg>
-              </span>
-              <span>Power On Hours</span>
-            </div>
-            <span id="valPowerHours" class="font-bold text-[#059669]">128 h</span>
-          </div>
-        </div>
-
-        <!-- Bottom Healthy Shield Badge -->
-        <div class="p-3 rounded-xl bg-[#EEF2FF]/60 border border-[#E0E7FF] flex items-start gap-2.5">
-          <svg class="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-          </svg>
-          <div>
-            <div id="shieldTitle" class="text-xs font-bold text-slate-800">Drive looks healthy</div>
-            <div id="shieldSub" class="text-[11px] text-slate-500">No issues detected. Good to proceed.</div>
           </div>
         </div>
       </div>
