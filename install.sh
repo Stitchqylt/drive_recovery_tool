@@ -1,41 +1,75 @@
-#!/usr/bin/env bash
-# Antigravity Raw Drive Recovery Studio - 1-Line macOS & Linux Installer / Launcher
+#!/bin/bash
+# drive-recovery-tool installer for macOS/Linux
 # Usage: curl -sSL https://raw.githubusercontent.com/Stitchqylt/drive_recovery_tool/main/install.sh | bash
 
 set -e
 
-echo ""
-echo -e "\033[1;36m========================================================================\033[0m"
-echo -e "\033[1;36m    ANTIGRAVITY RAW DRIVE RECOVERY STUDIO (macOS / Linux Launcher)\033[0m"
-echo -e "\033[1;36m========================================================================\033[0m"
+REPO="Stitchqylt/drive_recovery_tool"
+BRANCH="main"
+INSTALL_DIR="${HOME}/.local/share/drive-recovery-tool"
+BIN_DIR="${HOME}/.local/bin"
+BIN_NAME="drive-recovery"
+
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║     drive-recovery-tool installer (macOS/Linux)              ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-INSTALL_DIR="$HOME/DriveRecoveryStudio"
-ZIP_URL="https://raw.githubusercontent.com/Stitchqylt/drive_recovery_tool/main/DriveRecoveryTool_v1.0.zip"
-ZIP_FILE="/tmp/DriveRecoveryTool_v1.0.zip"
-
-# Check Python 3
-if ! command -v python3 &> /dev/null; then
-    echo -e "\033[1;31m[!] Python 3 is required. Please install Python 3 or Xcode Command Line Tools.\033[0m"
+# Check Python 3.8+
+PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+REQUIRED_VERSION="3.8"
+if ! python3 -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)"; then
+    echo "✗ Python 3.8+ required (found $PYTHON_VERSION)"
     exit 1
 fi
+echo "✓ Python $PYTHON_VERSION"
 
-echo -e "\033[1;32m[*] Downloading latest recovery package...\033[0m"
-curl -sSL "$ZIP_URL" -o "$ZIP_FILE"
+# Create directories
+mkdir -p "$INSTALL_DIR" "$BIN_DIR"
 
-rm -rf "$INSTALL_DIR"
-mkdir -p "$INSTALL_DIR"
-
-echo -e "\033[1;32m[*] Extracting to $INSTALL_DIR...\033[0m"
-unzip -q -o "$ZIP_FILE" -d "$INSTALL_DIR"
-rm -f "$ZIP_FILE"
-
-echo -e "\033[1;36m[+] Launching Recovery Web Studio locally...\033[0m"
-cd "$INSTALL_DIR/DriveRecoveryTool"
-
-# Open browser on macOS
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    (sleep 1 && open "http://127.0.0.1:8080") &
+# Clone/update repo
+echo "→ Installing to $INSTALL_DIR"
+if [ -d "$INSTALL_DIR/.git" ]; then
+    cd "$INSTALL_DIR"
+    git fetch origin "$BRANCH" && git reset --hard "origin/$BRANCH"
+    echo "✓ Updated existing installation"
+else
+    git clone --depth 1 --branch "$BRANCH" "https://github.com/$REPO.git" "$INSTALL_DIR"
+    echo "✓ Cloned repository"
 fi
 
-python3 web_studio.py
+# Create launcher script
+cat > "$BIN_DIR/$BIN_NAME" << 'LAUNCHER_EOF'
+#!/bin/bash
+# drive-recovery-tool launcher
+INSTALL_DIR="${HOME}/.local/share/drive-recovery-tool"
+cd "$INSTALL_DIR"
+exec python3 main.py "$@"
+LAUNCHER_EOF
+
+chmod +x "$BIN_DIR/$BIN_NAME"
+
+# Check PATH
+if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
+    echo ""
+    echo "⚠ Add $BIN_DIR to your PATH:"
+    echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
+    echo "    source ~/.zshrc"
+    echo ""
+    echo "Or run directly: $BIN_DIR/$BIN_NAME --web"
+fi
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  Installation complete!                                       ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+echo "Usage:"
+echo "  $BIN_NAME --web          # Web dashboard (sudo for physical drives)"
+echo "  $BIN_NAME --cli          # Command line interface"
+echo "  $BIN_NAME --help         # Show all options"
+echo ""
+echo "Examples:"
+echo "  sudo $BIN_NAME --web                    # Web UI"
+echo "  sudo $BIN_NAME --cli --drive /dev/rdisk2  # Recover physical drive"
+echo "  $BIN_NAME --cli --drive disk.img          # Recover disk image"

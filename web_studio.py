@@ -189,8 +189,21 @@ class ReusableHTTPServer(HTTPServer):
 
 
 def run_web_studio(port: int = 8080, open_browser: bool = False):
-    server = ReusableHTTPServer(("0.0.0.0", port), StudioHandler)
-    url = f"http://127.0.0.1:{port}"
+    server = None
+    actual_port = port
+    for p in range(port, port + 10):
+        try:
+            server = ReusableHTTPServer(("0.0.0.0", p), StudioHandler)
+            actual_port = p
+            break
+        except OSError:
+            continue
+
+    if server is None:
+        print(f"[X] Error: Could not bind to any port in range {port}-{port+9}.")
+        return
+
+    url = f"http://127.0.0.1:{actual_port}"
     print(f"\n========================================================================")
     print(f"  ANTIGRAVITY RECOVERY STUDIO (WEB DASHBOARD)")
     print(f"  Running locally at: {url}")
