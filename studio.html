@@ -2,208 +2,482 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Drive Rescue - Clean Minimalist Studio</title>
+  <title>Drive Rescue</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    @keyframes spin-slow {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    @keyframes pulse-ring {
-      0%, 100% { opacity: 0.3; transform: scale(1); }
-      50% { opacity: 0.6; transform: scale(1.04); }
-    }
-    @keyframes scan-laser {
-      0% { transform: translateY(-50%) rotate(0deg); }
-      50% { transform: translateY(-50%) rotate(28deg); }
-      100% { transform: translateY(-50%) rotate(0deg); }
-    }
-    .animate-spin-disk { animation: spin-slow 8s linear infinite; }
-    .animate-laser { animation: scan-laser 4s ease-in-out infinite; transform-origin: 16px 16px; }
-    .animate-ring { animation: pulse-ring 3s ease-in-out infinite; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
     
-    .light-card {
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(226, 232, 240, 0.9);
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #F1F4F9;
     }
-    .platter-grid {
-      display: grid;
-      grid-template-columns: repeat(36, minmax(0, 1fr));
-      gap: 3px;
+    
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
     }
-    .sector-dot {
-      height: 7px;
-      border-radius: 2px;
-      transition: all 0.2s ease;
+
+    .app-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 20px;
+      box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
     }
-    .sector-dot:hover {
-      transform: scale(1.8);
-      z-index: 20;
+
+    .sub-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 16px;
     }
-    ::-webkit-scrollbar { width: 4px; }
+
+    .icon-box-purple { background: #EEF2FF; color: #4F46E5; }
+    .icon-box-blue { background: #EFF6FF; color: #3B82F6; }
+    .icon-box-green { background: #ECFDF5; color: #10B981; }
+    .icon-box-orange { background: #FFF7ED; color: #F97316; }
+
+    /* Segmented Circular Progress Ring */
+    .progress-ring-circle {
+      transition: stroke-dashoffset 0.35s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+
+    /* Floating folder animation */
+    @keyframes float-subtle {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-5px); }
+    }
+    .animate-float {
+      animation: float-subtle 3s ease-in-out infinite;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
   </style>
 </head>
-<body class="bg-[#f8fafc] text-slate-800 font-sans min-h-screen flex items-center justify-center p-4 sm:p-6 antialiased selection:bg-indigo-500 selection:text-white">
+<body class="text-slate-800 antialiased p-4 sm:p-6 lg:p-8 flex items-center justify-center min-h-screen">
 
-  <!-- Main Clean App Shell -->
-  <div class="w-full max-w-3xl light-card rounded-3xl p-6 sm:p-8 shadow-2xl shadow-slate-300/40 relative overflow-hidden space-y-6">
+  <div class="w-full max-w-6xl space-y-4">
     
-    <!-- Minimal Header -->
-    <header class="flex items-center justify-between pb-1">
-      <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/20">
-          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+    <!-- Top Global Header -->
+    <header class="flex items-center justify-between px-2 py-1">
+      <div class="flex items-center gap-3.5">
+        <!-- Beaker Logo -->
+        <div class="w-11 h-11 rounded-2xl bg-[#4F46E5] flex items-center justify-center shadow-lg shadow-indigo-500/20 text-white">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 2v7.31M14 2v7.31M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0L10 2h4l-.01 7.3z"/>
           </svg>
         </div>
-        <div>
-          <h1 class="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            Drive Rescue
-            <span class="px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 rounded-full">
-              Ready
-            </span>
-          </h1>
-        </div>
+        <h1 class="text-xl font-extrabold tracking-tight text-slate-900">Drive Rescue</h1>
+        <!-- Ready Badge -->
+        <span id="headerStatusBadge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
+          <span class="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
+          <span id="headerStatusText">Ready</span>
+        </span>
       </div>
 
-      <!-- Quick Actions -->
-      <div class="flex items-center gap-2">
-        <button id="btnCopy" onclick="copyCli()" title="Copy CLI Command" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80 transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold">
-          <svg id="copyIcon" class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+      <div class="flex items-center gap-2.5">
+        <!-- CLI Button -->
+        <button onclick="copyCliCommand()" id="btnCli" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold border border-slate-200 shadow-sm transition active:scale-95">
+          <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
           </svg>
-          <span id="copyLabel">CLI</span>
+          <span id="cliBtnText">CLI</span>
+        </button>
+        <!-- Settings Button -->
+        <button class="w-9 h-9 rounded-xl bg-white hover:bg-slate-50 text-slate-600 flex items-center justify-center border border-slate-200 shadow-sm transition active:scale-95">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
         </button>
       </div>
     </header>
 
-    <!-- Visual Disk Surface & Scanner Animation -->
-    <div class="bg-slate-50/70 border border-slate-200/70 rounded-2xl p-5 relative overflow-hidden flex flex-col items-center justify-center space-y-4">
+    <!-- Top Main Card (3 Columns: Progress Info | Circular Ring | Health Panel) -->
+    <div class="app-card p-6 sm:p-7 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
       
-      <!-- Central Animated Disk Visualizer -->
-      <div class="relative w-44 h-44 flex items-center justify-center my-1">
-        <!-- Outer Glowing Ring -->
-        <div id="diskRing" class="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ring"></div>
-        <!-- Rotating Platter -->
-        <div id="diskPlatter" class="w-36 h-36 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-lg shadow-slate-200 relative">
-          <!-- Concentric Grooves -->
-          <div class="w-28 h-28 rounded-full border border-slate-100 flex items-center justify-center">
-            <div class="w-20 h-20 rounded-full border border-slate-200/60 flex items-center justify-center">
-              <div class="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center">
-                <!-- Center Spindle -->
-                <div class="w-5 h-5 rounded-full bg-indigo-600 shadow-sm"></div>
-              </div>
+      <!-- Left Column: Rescue Progress Details -->
+      <div class="lg:col-span-4 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-900">Rescue Progress</h2>
+          <p class="text-xs text-slate-500 mt-1 leading-relaxed">
+            Scanning drive for recoverable files.<br>This may take a while depending on the drive size and condition.
+          </p>
+        </div>
+
+        <div class="space-y-3 pt-1">
+          <!-- Elapsed Time -->
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </div>
+            <div>
+              <div class="text-[11px] font-medium text-slate-400">Elapsed Time</div>
+              <div id="dispElapsed" class="text-xs font-bold text-slate-800 font-mono">00:00:00</div>
             </div>
           </div>
-          <!-- Scanning Laser Arm -->
-          <div id="laserArm" class="absolute top-2 left-2 w-24 h-0.5 bg-gradient-to-r from-indigo-500 to-transparent rounded-full origin-left rotate-12 hidden"></div>
-        </div>
 
-        <!-- Center Rescue Percentage Overlay -->
-        <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span id="pctDisplay" class="text-2xl font-black tracking-tight text-slate-900">0%</span>
-          <span id="statusSub" class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Idle</span>
+          <!-- Estimated Time -->
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="text-[11px] font-medium text-slate-400">Estimated Time</div>
+              <div id="dispEstimated" class="text-xs font-bold text-slate-800">Calculating...</div>
+            </div>
+          </div>
+
+          <!-- Scan Method -->
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+            </div>
+            <div>
+              <div class="text-[11px] font-medium text-slate-400">Scan Method</div>
+              <div class="text-xs font-bold text-slate-800">Deep Scan (Thorough)</div>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- Minimal Sector Mosaic Grid -->
-      <div class="w-full">
-        <div id="mosaicGrid" class="platter-grid"></div>
+      <!-- Middle Column: Segmented Circular Radial Gauge -->
+      <div class="lg:col-span-4 flex flex-col items-center justify-center py-2">
+        <div class="relative w-48 h-48 flex items-center justify-center">
+          <svg class="w-full h-full" viewBox="0 0 160 160">
+            <!-- Background Track -->
+            <circle cx="80" cy="80" r="64" fill="transparent" stroke="#E2E8F0" stroke-width="8" stroke-dasharray="8 4" />
+            <!-- Active Scanned Segment -->
+            <circle id="progressCircle" class="progress-ring-circle" cx="80" cy="80" r="64" fill="transparent" stroke="#4F46E5" stroke-width="8" stroke-dasharray="402" stroke-dashoffset="402" stroke-linecap="round" />
+          </svg>
+          
+          <!-- Center Percentage & Status -->
+          <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+            <span id="centerPct" class="text-3xl font-extrabold text-slate-900 tracking-tight">0%</span>
+            <span id="centerStatus" class="text-[10px] font-bold uppercase tracking-wider text-[#4F46E5] mt-0.5">IDLE</span>
+          </div>
+        </div>
+
+        <!-- Progress Legends -->
+        <div class="flex items-center gap-4 text-xs font-semibold text-slate-500 mt-3">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#4F46E5]"></span>
+            <span>Scanned</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#A5B4FC]"></span>
+            <span>Processing</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-[#CBD5E1]"></span>
+            <span>Pending</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Drive Health & S.M.A.R.T. -->
+      <div class="lg:col-span-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-slate-900">Drive Health</h2>
+          <span id="healthVerdictPill" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#059669]">Good</span>
+        </div>
+
+        <div class="space-y-2.5">
+          <!-- Temperature -->
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5 text-slate-600">
+              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M14 14.76V3.5a2.5 2.5 0 0 0-5 0v11.26a4.5 4.5 0 1 0 5 0z"></path>
+                </svg>
+              </span>
+              <span>Temperature</span>
+            </div>
+            <span id="valTemp" class="font-bold text-[#059669]">32 °C</span>
+          </div>
+
+          <!-- Reallocated Sectors -->
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5 text-slate-600">
+              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+              </span>
+              <span>Reallocated Sectors</span>
+            </div>
+            <span id="valRealloc" class="font-bold text-[#059669]">0</span>
+          </div>
+
+          <!-- Pending Sectors -->
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5 text-slate-600">
+              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </span>
+              <span>Pending Sectors</span>
+            </div>
+            <span id="valPending" class="font-bold text-[#059669]">0</span>
+          </div>
+
+          <!-- Power On Hours -->
+          <div class="flex items-center justify-between text-xs">
+            <div class="flex items-center gap-2.5 text-slate-600">
+              <span class="w-6 h-6 rounded-lg bg-[#ECFDF5] text-[#10B981] flex items-center justify-center shrink-0">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                  <line x1="12" y1="2" x2="12" y2="12"></line>
+                </svg>
+              </span>
+              <span>Power On Hours</span>
+            </div>
+            <span id="valPowerHours" class="font-bold text-[#059669]">128 h</span>
+          </div>
+        </div>
+
+        <!-- Bottom Healthy Shield Badge -->
+        <div class="p-3 rounded-xl bg-[#EEF2FF]/60 border border-[#E0E7FF] flex items-start gap-2.5">
+          <svg class="w-4 h-4 text-[#4F46E5] shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
+          <div>
+            <div id="shieldTitle" class="text-xs font-bold text-slate-800">Drive looks healthy</div>
+            <div id="shieldSub" class="text-[11px] text-slate-500">No issues detected. Good to proceed.</div>
+          </div>
+        </div>
       </div>
 
     </div>
 
-    <!-- Minimal Controls Strip -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <!-- Middle Controls Row (Source Drive | Save To | Action Buttons) -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
       
-      <!-- Source Drive Pill -->
-      <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm">
-        <div class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-700">
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
+      <!-- Source Drive Card -->
+      <div class="lg:col-span-4 app-card p-4 flex items-center gap-3.5 cursor-pointer hover:border-indigo-300 transition">
+        <div class="w-10 h-10 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Source</div>
-          <select id="driveSelect" onchange="onDriveChanged()" class="w-full bg-transparent text-xs font-semibold text-slate-800 outline-none cursor-pointer truncate">
-            <option value="1">PhysicalDrive 1 (500GB)</option>
-          </select>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SOURCE DRIVE</div>
+          <div class="relative">
+            <select id="driveSelect" onchange="onDriveChanged()" class="w-full bg-transparent font-bold text-slate-800 text-sm outline-none cursor-pointer truncate appearance-none pr-5">
+              <option value="1">/dev/sdb (\\\\.\\PhysicalDrive1)</option>
+            </select>
+            <div class="absolute inset-y-0 right-0 flex items-center pointer-events-none text-slate-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+          <div id="driveSubtext" class="text-xs text-slate-500 truncate">2.00 TB External Drive • Seagate Expansion</div>
         </div>
       </div>
 
-      <!-- Destination Folder Pill -->
-      <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm">
-        <div class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-700">
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+      <!-- Save To Card -->
+      <div class="lg:col-span-4 app-card p-4 flex items-center gap-3.5 cursor-pointer hover:border-indigo-300 transition">
+        <div class="w-10 h-10 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
           </svg>
         </div>
         <div class="flex-1 min-w-0">
-          <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Save To</div>
-          <input type="text" id="destDir" value="recovered_files" class="w-full bg-transparent text-xs font-semibold text-slate-800 outline-none truncate">
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SAVE TO</div>
+          <div class="relative">
+            <input type="text" id="destDir" value="/recovered_files" class="w-full bg-transparent font-bold text-slate-800 text-sm outline-none truncate">
+          </div>
+          <div class="text-xs text-slate-500 truncate">1.50 TB free of 2.00 TB</div>
         </div>
       </div>
 
-      <!-- Hero Action Button -->
-      <button id="btnHero" onclick="toggleRescue()" class="rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition active:scale-95 flex items-center justify-center gap-2 p-3">
-        <svg id="heroIcon" class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-        <span id="heroLabel">Start Rescue</span>
-      </button>
+      <!-- Action Buttons Stack (Start Rescue & Pause) -->
+      <div class="lg:col-span-4 flex flex-col justify-between gap-2.5">
+        <button id="btnStartRescue" onclick="toggleRescue()" class="w-full py-3.5 px-6 rounded-2xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-bold text-sm shadow-md shadow-indigo-500/20 transition active:scale-98 flex items-center justify-center gap-2">
+          <svg id="startIcon" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+          <span id="startBtnText">Start Rescue</span>
+        </button>
+        <button id="btnPause" onclick="pauseRescue()" class="w-full py-2.5 px-6 rounded-2xl bg-[#EEF2FF] hover:bg-[#E0E7FF] text-[#4F46E5] font-bold text-xs transition active:scale-98 flex items-center justify-center gap-2">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="6" y="4" width="4" height="16"></rect>
+            <rect x="14" y="4" width="4" height="16"></rect>
+          </svg>
+          <span>Pause</span>
+        </button>
+      </div>
 
     </div>
 
-    <!-- Clean Metric Counters (No Traffic Lights) -->
-    <div class="grid grid-cols-3 gap-3">
-      <div class="bg-white border border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
-        <div id="countClean" class="text-xl font-bold text-slate-900">0</div>
-        <div class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-0.5">Files Rescued</div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
-        <div id="countRepaired" class="text-xl font-bold text-slate-900">0</div>
-        <div class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-0.5">Repaired (0-Fill)</div>
-      </div>
-      <div class="bg-white border border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
-        <div id="countBad" class="text-xl font-bold text-slate-900">0</div>
-        <div class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-0.5">Sectors Handled</div>
-      </div>
-    </div>
-
-    <!-- Clean File Stream (No Traffic Lights) -->
-    <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
-      <div class="flex items-center justify-between">
-        <div class="text-xs font-bold text-slate-800 flex items-center gap-2">
-          <span>Rescued Files</span>
-          <span id="streamCount" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">0</span>
+    <!-- 4 Metric Counter Cards Row -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- Files Rescued -->
+      <div class="app-card p-4 flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl icon-box-purple flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
         </div>
-        <input type="text" id="streamSearch" oninput="filterStream()" placeholder="Filter (.pdf, doc)..." class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-800 placeholder-slate-400 outline-none w-36 focus:w-48 transition-all">
+        <div>
+          <div id="statFilesRescued" class="text-xl font-extrabold text-slate-900">0</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">FILES RESCUED</div>
+          <div id="statFilesBytes" class="text-[11px] text-slate-500 font-medium">0 B total</div>
+        </div>
       </div>
 
-      <div id="fileList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-        <div class="text-xs text-slate-400 italic py-6 text-center">Ready to rescue files...</div>
+      <!-- Repaired (0-Fill) -->
+      <div class="app-card p-4 flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl icon-box-blue flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
+          </svg>
+        </div>
+        <div>
+          <div id="statRepaired" class="text-xl font-extrabold text-slate-900">0</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">REPAIRED (0-FILL)</div>
+          <div class="text-[11px] text-slate-500 font-medium">0 B total</div>
+        </div>
       </div>
+
+      <!-- Sectors Handled -->
+      <div class="app-card p-4 flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl icon-box-green flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path>
+            <path d="M22 12A10 10 0 0 0 12 2v10z"></path>
+          </svg>
+        </div>
+        <div>
+          <div id="statSectors" class="text-xl font-extrabold text-slate-900">0</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">SECTORS HANDLED</div>
+          <div class="text-[11px] text-slate-500 font-medium">0 B total</div>
+        </div>
+      </div>
+
+      <!-- Bad Sectors -->
+      <div class="app-card p-4 flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl icon-box-orange flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </div>
+        <div>
+          <div id="statBadSectors" class="text-xl font-extrabold text-slate-900">0</div>
+          <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">BAD SECTORS</div>
+          <div class="text-[11px] text-slate-500 font-medium">0 B total</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Rescued Files Table / Card -->
+    <div class="app-card p-6 space-y-4">
+      
+      <!-- Table Header & Filter Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pb-1">
+        <div class="flex items-center gap-2">
+          <h3 class="text-sm font-bold text-slate-900">Rescued Files</h3>
+          <span id="badgeFileCount" class="px-2 py-0.5 text-xs font-semibold rounded-full bg-slate-100 text-slate-600">0</span>
+        </div>
+
+        <div class="flex items-center gap-2.5">
+          <!-- Search input -->
+          <div class="relative">
+            <input type="text" id="searchInput" oninput="filterFiles()" placeholder="Filter files (.pdf, .doc, .jpg...)" class="bg-[#F8FAFC] border border-slate-200 rounded-xl pl-3.5 pr-8 py-1.5 text-xs text-slate-800 placeholder-slate-400 outline-none w-64 focus:border-indigo-400 focus:bg-white transition">
+            <svg class="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </div>
+
+          <!-- View Mode Toggles -->
+          <div class="flex items-center bg-[#F8FAFC] border border-slate-200 rounded-xl p-0.5">
+            <button class="p-1.5 rounded-lg bg-white shadow-xs text-slate-700">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+            </button>
+            <button class="p-1.5 rounded-lg text-slate-400 hover:text-slate-600">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Column Headers -->
+      <div class="grid grid-cols-12 text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 py-1 border-b border-slate-100">
+        <div class="col-span-5">NAME</div>
+        <div class="col-span-2">SIZE</div>
+        <div class="col-span-2">STATUS</div>
+        <div class="col-span-1">TYPE</div>
+        <div class="col-span-2 text-right">MODIFIED</div>
+      </div>
+
+      <!-- Table Body / Empty State -->
+      <div id="fileTableContent" class="py-4">
+        <!-- Empty State Default -->
+        <div id="emptyState" class="py-10 text-center flex flex-col items-center justify-center space-y-2">
+          <div class="w-12 h-12 rounded-2xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center animate-float">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <div class="text-xs font-bold text-slate-800">No files rescued yet</div>
+          <div class="text-[11px] text-slate-400">Start the rescue process to recover files from your drive.</div>
+        </div>
+
+        <!-- Dynamic Files List Container -->
+        <div id="filesList" class="space-y-1 max-h-56 overflow-y-auto pr-1 hidden"></div>
+      </div>
+
     </div>
 
   </div>
 
   <script>
-    const TOTAL_DOTS = 180;
-    const gridEl = document.getElementById('mosaicGrid');
-    const dots = [];
     let isRunning = false;
-    let pollTimer = null;
-    let streamItems = [];
+    let pollInterval = null;
+    let startTime = null;
+    let timerInterval = null;
+    let filesData = [];
 
-    // Build Clean Sector Mosaic Grid
-    for (let i = 0; i < TOTAL_DOTS; i++) {
-      const d = document.createElement('div');
-      d.className = 'sector-dot bg-slate-200';
-      gridEl.appendChild(d);
-      dots.push(d);
-    }
+    // Circle Circumference = 2 * PI * 64 ≈ 402
+    const CIRCLE_CIRCUMFERENCE = 402;
 
     window.addEventListener('DOMContentLoaded', () => {
       loadDrives();
@@ -219,13 +493,22 @@
         data.drives.forEach(d => {
           const opt = document.createElement('option');
           opt.value = d.index >= 0 ? d.index : d.device_path;
-          opt.innerText = `${d.name} (${d.device_path})`;
+          opt.innerText = `${d.device_path} (${d.name})`;
           sel.appendChild(opt);
         });
+        if (data.drives.length > 0) {
+          document.getElementById('driveSubtext').innerText = `${data.drives[0].name}`;
+        }
       } catch (e) {
+        // Mock fallback for direct preview
         const sel = document.getElementById('driveSelect');
-        sel.innerHTML = `<option value="1">Seagate 500GB (\\\\.\\PhysicalDrive1)</option><option value="2">WD Blue 1TB (\\\\.\\PhysicalDrive2)</option>`;
+        sel.innerHTML = `<option value="1">/dev/sdb (\\\\.\\PhysicalDrive1)</option><option value="2">/dev/sdc (\\\\.\\PhysicalDrive2)</option>`;
       }
+    }
+
+    function onDriveChanged() {
+      const sel = document.getElementById('driveSelect');
+      document.getElementById('driveSubtext').innerText = sel.options[sel.selectedIndex].text;
     }
 
     function toggleRescue() {
@@ -238,12 +521,16 @@
 
     async function startRescue() {
       isRunning = true;
-      document.getElementById('diskPlatter').classList.add('animate-spin-disk');
-      document.getElementById('laserArm').classList.remove('hidden');
-      document.getElementById('laserArm').classList.add('animate-laser');
-      document.getElementById('heroLabel').innerText = "Pause";
-      document.getElementById('heroIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
-      document.getElementById('statusSub').innerText = "Rescuing";
+      startTime = Date.now();
+      timerInterval = setInterval(updateElapsedTimer, 1000);
+
+      document.getElementById('headerStatusText').innerText = "Scanning";
+      document.getElementById('headerStatusBadge').className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#EEF2FF] text-[#4F46E5] border border-[#C7D2FE]";
+      document.getElementById('centerStatus').innerText = "SCANNING";
+      document.getElementById('startBtnText').innerText = "Running...";
+      document.getElementById('startIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+      document.getElementById('emptyState').classList.add('hidden');
+      document.getElementById('filesList').classList.remove('hidden');
 
       try {
         await fetch('/api/start', {
@@ -257,21 +544,32 @@
         });
       } catch (e) {}
 
-      pollTimer = setInterval(pollState, 500);
+      pollInterval = setInterval(pollState, 500);
     }
 
     async function pauseRescue() {
       isRunning = false;
-      clearInterval(pollTimer);
-      document.getElementById('diskPlatter').classList.remove('animate-spin-disk');
-      document.getElementById('laserArm').classList.add('hidden');
-      document.getElementById('heroLabel').innerText = "Resume";
-      document.getElementById('heroIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
-      document.getElementById('statusSub').innerText = "Paused";
+      clearInterval(pollInterval);
+      clearInterval(timerInterval);
+
+      document.getElementById('headerStatusText').innerText = "Paused";
+      document.getElementById('headerStatusBadge').className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]";
+      document.getElementById('centerStatus').innerText = "PAUSED";
+      document.getElementById('startBtnText').innerText = "Resume Rescue";
+      document.getElementById('startIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
 
       try {
         await fetch('/api/pause', {method: 'POST'});
       } catch (e) {}
+    }
+
+    function updateElapsedTimer() {
+      if (!startTime) return;
+      const elapsedSec = Math.floor((Date.now() - startTime) / 1000);
+      const h = String(Math.floor(elapsedSec / 3600)).padStart(2, '0');
+      const m = String(Math.floor((elapsedSec % 3600) / 60)).padStart(2, '0');
+      const s = String(elapsedSec % 60).padStart(2, '0');
+      document.getElementById('dispElapsed').innerText = `${h}:${m}:${s}`;
     }
 
     async function pollState() {
@@ -283,70 +581,88 @@
         if (data.stats) {
           const st = data.stats;
           const pct = Math.round(st.percent_complete);
-          document.getElementById('pctDisplay').innerText = pct + '%';
-          document.getElementById('countClean').innerText = st.recovered_files;
-          document.getElementById('countRepaired').innerText = st.partial_files;
-          document.getElementById('countBad').innerText = st.good_sectors + st.bad_sectors;
+          
+          document.getElementById('centerPct').innerText = `${pct}%`;
+          
+          // Update SVG stroke-dashoffset
+          const offset = CIRCLE_CIRCUMFERENCE - (CIRCLE_CIRCUMFERENCE * (pct / 100));
+          document.getElementById('progressCircle').style.strokeDashoffset = offset;
 
-          // Animate clean monochrome grid dots
-          const activeIndex = Math.floor((pct / 100) * TOTAL_DOTS);
-          for (let i = 0; i < TOTAL_DOTS; i++) {
-            if (i < activeIndex) {
-              dots[i].className = i % 14 === 0 ? 'sector-dot bg-slate-400' : 'sector-dot bg-indigo-600';
-            }
-          }
+          document.getElementById('statFilesRescued').innerText = st.recovered_files.toLocaleString();
+          document.getElementById('statFilesBytes').innerText = formatBytes(st.total_bytes_written);
+          document.getElementById('statRepaired').innerText = st.partial_files.toLocaleString();
+          document.getElementById('statSectors').innerText = st.good_sectors.toLocaleString();
+          document.getElementById('statBadSectors').innerText = st.bad_sectors.toLocaleString();
 
           if (!data.is_running && isRunning) {
             pauseRescue();
-            document.getElementById('statusSub').innerText = "Complete";
-            document.getElementById('pctDisplay').innerText = '100%';
+            document.getElementById('centerStatus').innerText = "COMPLETE";
+            document.getElementById('headerStatusText').innerText = "Complete";
+            document.getElementById('headerStatusBadge').className = "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]";
           }
         }
 
         if (data.recent_files && data.recent_files.length > 0) {
-          streamItems = data.recent_files;
-          document.getElementById('streamCount').innerText = streamItems.length;
-          renderStream();
+          filesData = data.recent_files;
+          document.getElementById('badgeFileCount').innerText = filesData.length;
+          renderFilesTable();
         }
       } catch (e) {}
     }
 
-    function filterStream() {
-      renderStream();
+    function formatBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B total';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i] + ' total';
     }
 
-    function renderStream() {
-      const q = document.getElementById('streamSearch').value.toLowerCase();
-      const list = streamItems.filter(f => !q || f.path.toLowerCase().includes(q));
-      const container = document.getElementById('fileList');
+    function filterFiles() {
+      renderFilesTable();
+    }
+
+    function renderFilesTable() {
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const list = filesData.filter(f => !q || f.path.toLowerCase().includes(q));
+      const container = document.getElementById('filesList');
 
       if (list.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-400 italic py-4 text-center">No files match.</div>`;
+        container.innerHTML = `<div class="text-xs text-slate-400 italic py-6 text-center">No files match filter.</div>`;
         return;
       }
 
       container.innerHTML = list.map(f => {
         const isPart = f.status === 'PARTIAL';
-        const badgeText = isPart ? 'Repaired' : 'Complete';
-        const badgeClass = isPart ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-100';
+        const badgeClass = isPart ? 'bg-[#FFFBEB] text-[#D97706] border-[#FDE68A]' : 'bg-[#ECFDF5] text-[#059669] border-[#A7F3D0]';
+        const badgeText = isPart ? 'Repaired' : 'Healthy';
+        const ext = f.path.includes('.') ? f.path.split('.').pop().toUpperCase() : 'FILE';
+        const sizeStr = f.size > 1048576 ? (f.size/1048576).toFixed(2) + ' MB' : (f.size/1024).toFixed(1) + ' KB';
 
         return `
-          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition text-xs border border-slate-100">
-            <span class="truncate font-medium text-slate-700 pr-2">${f.path}</span>
-            <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] ${badgeClass}">${badgeText}</span>
+          <div class="grid grid-cols-12 items-center text-xs px-3 py-2 rounded-xl hover:bg-slate-50 transition border border-transparent hover:border-slate-100">
+            <div class="col-span-5 flex items-center gap-2 truncate pr-2">
+              <svg class="w-4 h-4 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+              <span class="truncate font-semibold text-slate-800">${f.path}</span>
+            </div>
+            <div class="col-span-2 text-slate-500 font-mono text-[11px]">${sizeStr}</div>
+            <div class="col-span-2">
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeClass}">${badgeText}</span>
+            </div>
+            <div class="col-span-1 text-slate-400 font-mono text-[10px] font-semibold">${ext}</div>
+            <div class="col-span-2 text-right text-slate-400 text-[11px]">Just now</div>
           </div>
         `;
       }).join('');
     }
 
-    function copyCli() {
+    function copyCliCommand() {
       const drive = document.getElementById('driveSelect').value;
       const dest = document.getElementById('destDir').value;
       navigator.clipboard.writeText(`python main.py --cli --drive ${drive} --dest "${dest}"`);
-      
-      const label = document.getElementById('copyLabel');
-      label.innerText = "Copied!";
-      setTimeout(() => label.innerText = "CLI", 1500);
+      const btn = document.getElementById('cliBtnText');
+      btn.innerText = "Copied!";
+      setTimeout(() => btn.innerText = "CLI", 1500);
     }
   </script>
 </body>
