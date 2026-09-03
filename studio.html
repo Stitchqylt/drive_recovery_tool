@@ -2,79 +2,69 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Drive Rescue - Minimalist Studio</title>
+  <title>Drive Rescue - Clean Minimalist Studio</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     @keyframes spin-slow {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
     }
-    @keyframes pulse-glow {
-      0%, 100% { opacity: 0.4; transform: scale(1); }
-      50% { opacity: 0.8; transform: scale(1.05); }
+    @keyframes pulse-ring {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.04); }
     }
     @keyframes scan-laser {
       0% { transform: translateY(-50%) rotate(0deg); }
       50% { transform: translateY(-50%) rotate(28deg); }
       100% { transform: translateY(-50%) rotate(0deg); }
     }
-    @keyframes float-card {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-4px); }
-    }
     .animate-spin-disk { animation: spin-slow 8s linear infinite; }
-    .animate-laser { animation: scan-laser 4s ease-in-out infinite; transform-origin: 20px 20px; }
-    .animate-glow { animation: pulse-glow 3s ease-in-out infinite; }
-    .float-on-hover:hover { transform: translateY(-2px); transition: transform 0.2s ease; }
+    .animate-laser { animation: scan-laser 4s ease-in-out infinite; transform-origin: 16px 16px; }
+    .animate-ring { animation: pulse-ring 3s ease-in-out infinite; }
     
-    .glass-card {
-      background: rgba(15, 23, 42, 0.65);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+    .light-card {
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(226, 232, 240, 0.9);
     }
     .platter-grid {
       display: grid;
       grid-template-columns: repeat(36, minmax(0, 1fr));
-      gap: 2px;
+      gap: 3px;
     }
     .sector-dot {
-      height: 8px;
+      height: 7px;
       border-radius: 2px;
       transition: all 0.2s ease;
     }
     .sector-dot:hover {
-      transform: scale(2);
+      transform: scale(1.8);
       z-index: 20;
     }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
   </style>
 </head>
-<body class="bg-[#07090e] text-slate-100 font-sans min-h-screen flex items-center justify-center p-4 sm:p-6 antialiased selection:bg-cyan-400 selection:text-black">
+<body class="bg-[#f8fafc] text-slate-800 font-sans min-h-screen flex items-center justify-center p-4 sm:p-6 antialiased selection:bg-indigo-500 selection:text-white">
 
-  <!-- Ambient Light Orbs -->
-  <div class="fixed top-1/4 left-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-  <div class="fixed bottom-1/4 right-1/4 w-96 h-96 bg-indigo-500/10 rounded-full blur-[120px] pointer-events-none"></div>
-
-  <!-- Main App Shell -->
-  <div class="w-full max-w-4xl glass-card rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden space-y-6">
+  <!-- Main Clean App Shell -->
+  <div class="w-full max-w-3xl light-card rounded-3xl p-6 sm:p-8 shadow-2xl shadow-slate-300/40 relative overflow-hidden space-y-6">
     
-    <!-- Header: Minimal & Icon-Driven -->
-    <header class="flex items-center justify-between pb-2">
+    <!-- Minimal Header -->
+    <header class="flex items-center justify-between pb-1">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+        <div class="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-md shadow-indigo-600/20">
           <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
           </svg>
         </div>
         <div>
-          <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+          <h1 class="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
             Drive Rescue
-            <span id="healthPill" class="px-2 py-0.5 text-[11px] font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full flex items-center gap-1">
-              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-              Healthy
+            <span class="px-2 py-0.5 text-[11px] font-semibold bg-slate-100 text-slate-600 border border-slate-200 rounded-full">
+              Ready
             </span>
           </h1>
         </div>
@@ -82,8 +72,8 @@
 
       <!-- Quick Actions -->
       <div class="flex items-center gap-2">
-        <button id="btnCopy" onclick="copyCli()" title="Copy CLI Command" class="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/5 transition active:scale-95 flex items-center gap-1.5 text-xs font-medium">
-          <svg id="copyIcon" class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <button id="btnCopy" onclick="copyCli()" title="Copy CLI Command" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/80 transition active:scale-95 flex items-center gap-1.5 text-xs font-semibold">
+          <svg id="copyIcon" class="w-3.5 h-3.5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
           </svg>
           <span id="copyLabel">CLI</span>
@@ -92,43 +82,37 @@
     </header>
 
     <!-- Visual Disk Surface & Scanner Animation -->
-    <div class="glass-card rounded-2xl p-5 relative overflow-hidden flex flex-col items-center justify-center space-y-4">
+    <div class="bg-slate-50/70 border border-slate-200/70 rounded-2xl p-5 relative overflow-hidden flex flex-col items-center justify-center space-y-4">
       
       <!-- Central Animated Disk Visualizer -->
-      <div class="relative w-48 h-48 flex items-center justify-center my-2">
+      <div class="relative w-44 h-44 flex items-center justify-center my-1">
         <!-- Outer Glowing Ring -->
-        <div id="diskRing" class="absolute inset-0 rounded-full border-2 border-cyan-500/30 animate-glow"></div>
+        <div id="diskRing" class="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ring"></div>
         <!-- Rotating Platter -->
-        <div id="diskPlatter" class="w-40 h-40 rounded-full bg-gradient-to-tr from-slate-900 via-slate-800 to-slate-950 border border-slate-700/60 flex items-center justify-center shadow-inner relative">
+        <div id="diskPlatter" class="w-36 h-36 rounded-full bg-white border border-slate-200 flex items-center justify-center shadow-lg shadow-slate-200 relative">
           <!-- Concentric Grooves -->
-          <div class="w-32 h-32 rounded-full border border-slate-700/30 flex items-center justify-center">
-            <div class="w-24 h-24 rounded-full border border-slate-700/40 flex items-center justify-center">
-              <div class="w-14 h-14 rounded-full border border-slate-700/50 flex items-center justify-center">
+          <div class="w-28 h-28 rounded-full border border-slate-100 flex items-center justify-center">
+            <div class="w-20 h-20 rounded-full border border-slate-200/60 flex items-center justify-center">
+              <div class="w-12 h-12 rounded-full border border-slate-200 flex items-center justify-center">
                 <!-- Center Spindle -->
-                <div class="w-6 h-6 rounded-full bg-gradient-to-br from-cyan-400 to-indigo-600 shadow-md"></div>
+                <div class="w-5 h-5 rounded-full bg-indigo-600 shadow-sm"></div>
               </div>
             </div>
           </div>
           <!-- Scanning Laser Arm -->
-          <div id="laserArm" class="absolute top-2 left-2 w-28 h-1 bg-gradient-to-r from-cyan-400 to-transparent rounded-full origin-left rotate-12 hidden"></div>
+          <div id="laserArm" class="absolute top-2 left-2 w-24 h-0.5 bg-gradient-to-r from-indigo-500 to-transparent rounded-full origin-left rotate-12 hidden"></div>
         </div>
 
         <!-- Center Rescue Percentage Overlay -->
         <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          <span id="pctDisplay" class="text-2xl font-black tracking-tight text-white">0%</span>
-          <span id="statusSub" class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Ready</span>
+          <span id="pctDisplay" class="text-2xl font-black tracking-tight text-slate-900">0%</span>
+          <span id="statusSub" class="text-[10px] uppercase font-bold tracking-widest text-slate-400">Idle</span>
         </div>
       </div>
 
       <!-- Minimal Sector Mosaic Grid -->
-      <div class="w-full space-y-1.5">
+      <div class="w-full">
         <div id="mosaicGrid" class="platter-grid"></div>
-        <div class="flex items-center justify-between text-[11px] text-slate-400 font-medium px-1">
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Clean</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Repaired (0-Fill)</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-400"></span> Unreadable</span>
-          <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-slate-700"></span> Untouched</span>
-        </div>
       </div>
 
     </div>
@@ -137,69 +121,69 @@
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
       
       <!-- Source Drive Pill -->
-      <div class="glass-card rounded-2xl p-3 flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-cyan-400">
+      <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm">
+        <div class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-700">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
           </svg>
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Source</div>
-          <select id="driveSelect" onchange="onDriveChanged()" class="w-full bg-transparent text-xs font-semibold text-white outline-none cursor-pointer truncate">
+          <select id="driveSelect" onchange="onDriveChanged()" class="w-full bg-transparent text-xs font-semibold text-slate-800 outline-none cursor-pointer truncate">
             <option value="1">PhysicalDrive 1 (500GB)</option>
           </select>
         </div>
       </div>
 
       <!-- Destination Folder Pill -->
-      <div class="glass-card rounded-2xl p-3 flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center text-indigo-400">
+      <div class="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm">
+        <div class="w-9 h-9 rounded-xl bg-slate-50 flex items-center justify-center text-slate-700">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
           </svg>
         </div>
         <div class="flex-1 min-w-0">
           <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Save To</div>
-          <input type="text" id="destDir" value="recovered_files" class="w-full bg-transparent text-xs font-semibold text-white outline-none truncate">
+          <input type="text" id="destDir" value="recovered_files" class="w-full bg-transparent text-xs font-semibold text-slate-800 outline-none truncate">
         </div>
       </div>
 
       <!-- Hero Action Button -->
-      <button id="btnHero" onclick="toggleRescue()" class="rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-extrabold text-sm shadow-lg shadow-cyan-500/25 transition active:scale-95 flex items-center justify-center gap-2 p-3">
+      <button id="btnHero" onclick="toggleRescue()" class="rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-md shadow-indigo-600/20 transition active:scale-95 flex items-center justify-center gap-2 p-3">
         <svg id="heroIcon" class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         <span id="heroLabel">Start Rescue</span>
       </button>
 
     </div>
 
-    <!-- Live Metric Counters -->
+    <!-- Clean Metric Counters (No Traffic Lights) -->
     <div class="grid grid-cols-3 gap-3">
-      <div class="glass-card rounded-2xl p-3.5 text-center">
-        <div id="countClean" class="text-xl font-black text-emerald-400">0</div>
-        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-0.5">Clean Files</div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
+        <div id="countClean" class="text-xl font-bold text-slate-900">0</div>
+        <div class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-0.5">Files Rescued</div>
       </div>
-      <div class="glass-card rounded-2xl p-3.5 text-center">
-        <div id="countRepaired" class="text-xl font-black text-amber-400">0</div>
-        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-0.5">Repaired (.partial)</div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
+        <div id="countRepaired" class="text-xl font-bold text-slate-900">0</div>
+        <div class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-0.5">Repaired (0-Fill)</div>
       </div>
-      <div class="glass-card rounded-2xl p-3.5 text-center">
-        <div id="countBad" class="text-xl font-black text-rose-400">0</div>
-        <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider mt-0.5">Bad Sectors</div>
+      <div class="bg-white border border-slate-200 rounded-2xl p-3.5 text-center shadow-sm">
+        <div id="countBad" class="text-xl font-bold text-slate-900">0</div>
+        <div class="text-[10px] uppercase font-semibold text-slate-400 tracking-wider mt-0.5">Sectors Handled</div>
       </div>
     </div>
 
-    <!-- Stream: Clean Animated File Stream -->
-    <div class="glass-card rounded-2xl p-4 space-y-3">
+    <!-- Clean File Stream (No Traffic Lights) -->
+    <div class="bg-white border border-slate-200 rounded-2xl p-4 space-y-3 shadow-sm">
       <div class="flex items-center justify-between">
-        <div class="text-xs font-bold text-slate-300 flex items-center gap-2">
-          <span>Rescued Stream</span>
-          <span id="streamCount" class="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-slate-300">0</span>
+        <div class="text-xs font-bold text-slate-800 flex items-center gap-2">
+          <span>Rescued Files</span>
+          <span id="streamCount" class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">0</span>
         </div>
-        <input type="text" id="streamSearch" oninput="filterStream()" placeholder="Filter (.pdf, doc)..." class="bg-white/5 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white placeholder-slate-500 outline-none w-36 focus:w-48 transition-all">
+        <input type="text" id="streamSearch" oninput="filterStream()" placeholder="Filter (.pdf, doc)..." class="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs text-slate-800 placeholder-slate-400 outline-none w-36 focus:w-48 transition-all">
       </div>
 
-      <div id="fileList" class="space-y-2 max-h-48 overflow-y-auto pr-1">
-        <div class="text-xs text-slate-500 italic py-6 text-center">Ready to rescue files...</div>
+      <div id="fileList" class="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+        <div class="text-xs text-slate-400 italic py-6 text-center">Ready to rescue files...</div>
       </div>
     </div>
 
@@ -213,10 +197,10 @@
     let pollTimer = null;
     let streamItems = [];
 
-    // Build Minimal Mosaic Grid
+    // Build Clean Sector Mosaic Grid
     for (let i = 0; i < TOTAL_DOTS; i++) {
       const d = document.createElement('div');
-      d.className = 'sector-dot bg-slate-800';
+      d.className = 'sector-dot bg-slate-200';
       gridEl.appendChild(d);
       dots.push(d);
     }
@@ -239,7 +223,6 @@
           sel.appendChild(opt);
         });
       } catch (e) {
-        // Fallback simulation
         const sel = document.getElementById('driveSelect');
         sel.innerHTML = `<option value="1">Seagate 500GB (\\\\.\\PhysicalDrive1)</option><option value="2">WD Blue 1TB (\\\\.\\PhysicalDrive2)</option>`;
       }
@@ -303,13 +286,13 @@
           document.getElementById('pctDisplay').innerText = pct + '%';
           document.getElementById('countClean').innerText = st.recovered_files;
           document.getElementById('countRepaired').innerText = st.partial_files;
-          document.getElementById('countBad').innerText = st.bad_sectors;
+          document.getElementById('countBad').innerText = st.good_sectors + st.bad_sectors;
 
-          // Animate grid dots
+          // Animate clean monochrome grid dots
           const activeIndex = Math.floor((pct / 100) * TOTAL_DOTS);
           for (let i = 0; i < TOTAL_DOTS; i++) {
             if (i < activeIndex) {
-              dots[i].className = i % 14 === 0 ? 'sector-dot bg-amber-400' : (i % 38 === 0 ? 'sector-dot bg-rose-500' : 'sector-dot bg-emerald-400');
+              dots[i].className = i % 14 === 0 ? 'sector-dot bg-slate-400' : 'sector-dot bg-indigo-600';
             }
           }
 
@@ -338,23 +321,19 @@
       const container = document.getElementById('fileList');
 
       if (list.length === 0) {
-        container.innerHTML = `<div class="text-xs text-slate-500 italic py-4 text-center">No files match.</div>`;
+        container.innerHTML = `<div class="text-xs text-slate-400 italic py-4 text-center">No files match.</div>`;
         return;
       }
 
       container.innerHTML = list.map(f => {
         const isPart = f.status === 'PARTIAL';
-        const isFail = f.status === 'FAILED';
-        const color = isPart ? 'text-amber-400 bg-amber-400/10' : (isFail ? 'text-rose-400 bg-rose-400/10' : 'text-emerald-400 bg-emerald-400/10');
-        const icon = f.path.endsWith('.pdf') ? '📄' : (f.path.endsWith('.docx') ? '📝' : (f.path.endsWith('.xlsx') ? '📊' : (f.path.endsWith('.jpg') ? '🖼️' : '📁')));
+        const badgeText = isPart ? 'Repaired' : 'Complete';
+        const badgeClass = isPart ? 'bg-slate-100 text-slate-600 border border-slate-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-100';
 
         return `
-          <div class="flex items-center justify-between p-2 rounded-xl bg-white/5 hover:bg-white/10 transition text-xs">
-            <div class="flex items-center gap-2 truncate pr-2">
-              <span>${icon}</span>
-              <span class="truncate font-medium text-slate-200">${f.path}</span>
-            </div>
-            <span class="px-2 py-0.5 rounded-md font-bold text-[10px] ${color}">${f.status}</span>
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-50 hover:bg-slate-100/80 transition text-xs border border-slate-100">
+            <span class="truncate font-medium text-slate-700 pr-2">${f.path}</span>
+            <span class="px-2 py-0.5 rounded-md font-semibold text-[10px] ${badgeClass}">${badgeText}</span>
           </div>
         `;
       }).join('');
