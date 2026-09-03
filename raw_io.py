@@ -1,9 +1,9 @@
 """
-raw_io.py - Low-Level Physical Drive Reader with Win32 Overlapped Direct I/O and Timeouts
+raw_io.py - Low-Level Physical Drive Reader with Cross-Platform Direct I/O and Timeouts
 
-Provides sector-level direct read access to physical drives (\\\\.\\PhysicalDriveX)
-on Windows using unbuffered, asynchronous (overlapped) I/O with CancelIoEx timeouts
-to prevent Windows OS hangs on damaged or unreadable sectors.
+Provides sector-level direct read access to physical drives:
+- Windows: \\\\.\\PhysicalDriveX with Win32 Overlapped I/O + CancelIoEx timeouts
+- macOS/Linux: /dev/rdiskX / /dev/sdX with O_DIRECT + pread + pthread timeout
 """
 
 import sys
@@ -11,9 +11,13 @@ import os
 import time
 import struct
 import platform
+import threading
 from typing import Optional, Tuple, List, Dict, Any
 
 IS_WINDOWS = sys.platform.startswith("win")
+IS_MACOS = sys.platform == "darwin"
+IS_LINUX = sys.platform.startswith("linux")
+IS_UNIX = IS_MACOS or IS_LINUX
 
 if IS_WINDOWS:
     import ctypes
@@ -148,6 +152,27 @@ if IS_WINDOWS:
     IOCTL_DISK_GET_DRIVE_GEOMETRY_EX = 0x000700A0
     IOCTL_DISK_GET_LENGTH_INFO = 0x0007405F
 
+elif IS_UNIX:
+    import fcntl
+    import mmap
+    import errno
+    
+    # Linux/macOS constants
+    O_DIRECT = getattr(os, 'O_DIRECT', 0x4000)  # Linux: 0x4000, macOS: may need F_NOCACHE
+    F_NOCACHE = 48  # macOS fcntl flag for direct I/O
+    
+    # SG_IO for SCSI commands (S.M.A.R.T.)
+    SG_IO = 0x2285  # Linux
+    # macOS uses DKIOCGETBLOCKCOUNT, DKIOCGETBLOCKSIZE, etc.
+    
+    # Linux HDIO_GET_IDENTITY for S.M.A.R.T. (deprecated, use SG_IO)
+    HDIO_GET_IDENTITY = 0x030d
+    
+    # macOS DKIOC constants
+    DKIOCGETBLOCKCOUNT = 0x40046405  # _IOR('d', 5, uint64_t)
+    DKIOCGETBLOCKSIZE = 0x40046406   # _IOR('d', 6, uint32_t)
+    DKIOCGETSIZE = 0x40086407        # _IOR('d', 7, uint64_t)
+
 
 class SectorBuffer:
     """
@@ -159,13 +184,23 @@ class SectorBuffer:
             self.ptr = VirtualAlloc(None, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE)
             if not self.ptr:
                 raise MemoryError(f"VirtualAlloc failed for {size} bytes")
+            self._fd = None
+        elif IS_UNIX:
+            # Use mmap for page-aligned buffer on Unix
+            self._buf = mmap.mmap(-1, size, flags=mmap.MAP_PRIVATE | mmap.MAP_ANONYMOUS,
+                                   prot=mmap.PROT_READ | mmap.PROT_WRITE)
+            self.ptr = None
+            self._fd = None
         else:
             self._buf = bytearray(size)
             self.ptr = None
+            self._fd = None
 
     def get_bytes(self, length: int) -> bytes:
         if IS_WINDOWS:
             return ctypes.string_at(self.ptr, min(length, self.size))
+        elif IS_UNIX:
+            return bytes(self._buf[:length])
         else:
             return bytes(self._buf[:length])
 
@@ -173,6 +208,9 @@ class SectorBuffer:
         if IS_WINDOWS and self.ptr:
             VirtualFree(self.ptr, 0, MEM_RELEASE)
             self.ptr = None
+        elif IS_UNIX and self._buf:
+            self._buf.close()
+            self._buf = None
 
 
 class RawDiskReader:
@@ -220,8 +258,30 @@ class RawDiskReader:
             # Allocate default sector buffer (e.g. 1MB chunk buffer)
             self._buffer = SectorBuffer(1024 * 1024)
             self._query_disk_size()
+            
+        elif IS_UNIX and not self.is_image_file:
+            # Unix physical drive access with O_DIRECT
+            try:
+                flags = os.O_RDONLY | O_DIRECT
+                if IS_MACOS:
+                    # On macOS, use F_NOCACHE via fcntl after open
+                    self.handle = os.open(self.device_path, flags)
+                    fcntl.fcntl(self.handle, fcntl.F_NOCACHE, 1)
+                else:
+                    self.handle = os.open(self.device_path, flags)
+                
+                # Allocate aligned buffer
+                self._buffer = SectorBuffer(1024 * 1024)
+                self._query_disk_size_unix()
+            except PermissionError:
+                raise PermissionError(
+                    f"Failed to open {self.device_path} (Permission denied). "
+                    f"Ensure this program is run with sudo/root privileges."
+                )
+            except Exception as e:
+                raise IOError(f"Failed to open physical drive {self.device_path}: {e}")
         else:
-            # File or non-Windows system fallback
+            # File or non-Windows system fallback (regular buffered I/O for images)
             try:
                 self._file_obj = open(self.device_path, "rb")
                 self._file_obj.seek(0, os.SEEK_END)
@@ -251,6 +311,34 @@ class RawDiskReader:
         if success:
             self.disk_size_bytes = length_buf.value
 
+    def _query_disk_size_unix(self):
+        """Query disk size on Unix via ioctl."""
+        if not IS_UNIX or self.is_image_file or not self.handle:
+            return
+        
+        try:
+            if IS_MACOS:
+                # macOS: DKIOCGETSIZE returns uint64_t
+                import array
+                size_buf = array.array('Q', [0])
+                fcntl.ioctl(self.handle, DKIOCGETSIZE, size_buf, True)
+                self.disk_size_bytes = size_buf[0]
+            else:
+                # Linux: BLKGETSIZE64
+                BLKGETSIZE64 = 0x80081272
+                import array
+                size_buf = array.array('Q', [0])
+                fcntl.ioctl(self.handle, BLKGETSIZE64, size_buf)
+                self.disk_size_bytes = size_buf[0]
+        except Exception:
+            # Fallback: try to seek
+            try:
+                pos = os.lseek(self.handle, 0, os.SEEK_END)
+                self.disk_size_bytes = pos
+                os.lseek(self.handle, 0, os.SEEK_SET)
+            except Exception:
+                pass
+
     def read_sectors(self, start_sector: int, num_sectors: int, timeout_ms: Optional[int] = None) -> Optional[bytes]:
         """
         Reads a contiguous block of sectors starting at start_sector (LBA).
@@ -260,10 +348,12 @@ class RawDiskReader:
         byte_length = num_sectors * self.sector_size
         timeout = timeout_ms if timeout_ms is not None else self.default_timeout_ms
 
-        if not IS_WINDOWS or self.is_image_file:
+        if IS_WINDOWS and not self.is_image_file:
+            return self._read_win32_overlapped(byte_offset, byte_length, timeout)
+        elif IS_UNIX and not self.is_image_file:
+            return self._read_unix_direct(byte_offset, byte_length, timeout)
+        else:
             return self._read_fallback(byte_offset, byte_length)
-
-        return self._read_win32_overlapped(byte_offset, byte_length, timeout)
 
     def _read_win32_overlapped(self, byte_offset: int, byte_length: int, timeout_ms: int) -> Optional[bytes]:
         """
@@ -336,6 +426,63 @@ class RawDiskReader:
         except Exception:
             return None
 
+    def _read_unix_direct(self, byte_offset: int, byte_length: int, timeout_ms: int) -> Optional[bytes]:
+        """
+        Executes direct I/O read on Unix with timeout via thread watchdog.
+        Uses pread for atomic positioned reads with O_DIRECT.
+        """
+        # Ensure buffer size is sufficient and aligned
+        if not self._buffer or self._buffer.size < byte_length:
+            if self._buffer:
+                self._buffer.close()
+            # Allocate aligned buffer (page-aligned for O_DIRECT)
+            alloc_size = ((byte_length + 4095) // 4096) * 4096
+            self._buffer = SectorBuffer(alloc_size)
+        
+        # O_DIRECT requires aligned offset and length
+        if byte_offset % 512 != 0:
+            # Fallback to regular read for unaligned offsets
+            return self._read_fallback(byte_offset, byte_length)
+        
+        # Adjust length to sector alignment
+        aligned_length = ((byte_length + 511) // 512) * 512
+        
+        result = [None]
+        error = [None]
+        done_event = threading.Event()
+        
+        def _do_read():
+            try:
+                # Use os.pread for atomic positioned read
+                data = os.pread(self.handle, aligned_length, byte_offset)
+                if len(data) >= byte_length:
+                    # Copy to aligned buffer
+                    self._buffer._buf[:byte_length] = data[:byte_length]
+                    result[0] = self._buffer.get_bytes(byte_length)
+                else:
+                    result[0] = None
+            except Exception as e:
+                error[0] = e
+                result[0] = None
+            finally:
+                done_event.set()
+        
+        t = threading.Thread(target=_do_read, daemon=True)
+        t.start()
+        
+        # Wait with timeout
+        timeout_sec = timeout_ms / 1000.0
+        completed = done_event.wait(timeout=timeout_sec)
+        
+        if not completed:
+            # Timeout - can't easily cancel pread, but thread is daemon
+            return None
+        
+        if error[0]:
+            return None
+        
+        return result[0]
+
     def read_cluster(self, lba_offset: int, cluster_index: int, sectors_per_cluster: int, timeout_ms: Optional[int] = None) -> Optional[bytes]:
         """
         Reads a single cluster at given partition LBA offset and cluster index.
@@ -355,6 +502,16 @@ class RawDiskReader:
             if self.handle and self.handle != INVALID_HANDLE_VALUE:
                 CloseHandle(self.handle)
                 self.handle = None
+        elif IS_UNIX:
+            if self._buffer:
+                self._buffer.close()
+                self._buffer = None
+            if self.handle is not None:
+                try:
+                    os.close(self.handle)
+                except Exception:
+                    pass
+                self.handle = None
         if self._file_obj:
             self._file_obj.close()
             self._file_obj = None
@@ -368,12 +525,107 @@ class RawDiskReader:
 
 def list_physical_drives() -> List[Dict[str, Any]]:
     """
-    Lists physical drives available on the Windows system.
+    Lists physical drives available on the system.
     Returns list of dicts with drive index, device path, and size.
     """
     drives = []
-    if not IS_WINDOWS:
-        # Return mock / local testing drive representation
+    
+    if IS_WINDOWS:
+        # Scan PhysicalDrive0 up to PhysicalDrive32
+        for drive_idx in range(32):
+            device_path = rf"\\.\PhysicalDrive{drive_idx}"
+            try:
+                reader = RawDiskReader(device_path, sector_size=512, default_timeout_ms=500)
+                size_gb = reader.disk_size_bytes / (1024**3) if reader.disk_size_bytes > 0 else 0
+                size_str = f"{size_gb:.2f} GB" if size_gb > 0 else "Unknown Size"
+                drives.append({
+                    "index": drive_idx,
+                    "device_path": device_path,
+                    "name": f"PhysicalDrive{drive_idx} ({size_str})",
+                    "size_bytes": reader.disk_size_bytes,
+                    "size_str": size_str,
+                })
+                reader.close()
+            except PermissionError:
+                # Drive exists but access denied (or needs admin)
+                drives.append({
+                    "index": drive_idx,
+                    "device_path": device_path,
+                    "name": f"PhysicalDrive{drive_idx} (Access Denied / Admin Required)",
+                    "size_bytes": 0,
+                    "size_str": "Unknown",
+                })
+            except Exception:
+                # Drive does not exist or cannot be opened
+                continue
+                
+    elif IS_MACOS:
+        # macOS: scan /dev/rdisk* (raw disk devices)
+        import glob
+        for dev_path in sorted(glob.glob("/dev/rdisk*")):
+            # Skip partitions (rdisk0s1, rdisk1s2, etc.) - only whole disks
+            if 's' in os.path.basename(dev_path)[5:]:  # rdisk0s1 -> skip
+                continue
+            try:
+                reader = RawDiskReader(dev_path, sector_size=512, default_timeout_ms=500)
+                size_gb = reader.disk_size_bytes / (1024**3) if reader.disk_size_bytes > 0 else 0
+                size_str = f"{size_gb:.2f} GB" if size_gb > 0 else "Unknown Size"
+                drives.append({
+                    "index": len(drives),
+                    "device_path": dev_path,
+                    "name": f"{os.path.basename(dev_path)} ({size_str})",
+                    "size_bytes": reader.disk_size_bytes,
+                    "size_str": size_str,
+                })
+                reader.close()
+            except PermissionError:
+                drives.append({
+                    "index": len(drives),
+                    "device_path": dev_path,
+                    "name": f"{os.path.basename(dev_path)} (Permission denied - run with sudo)",
+                    "size_bytes": 0,
+                    "size_str": "Unknown",
+                })
+            except Exception:
+                continue
+                
+    elif IS_LINUX:
+        # Linux: scan /dev/sd* and /dev/nvme*
+        import glob
+        for pattern in ["/dev/sd[a-z]", "/dev/nvme*n*"]:
+            for dev_path in sorted(glob.glob(pattern)):
+                # Skip partitions (sda1, nvme0n1p1) - only whole disks
+                basename = os.path.basename(dev_path)
+                if any(c.isdigit() for c in basename[-1:]) and not basename.startswith('nvme'):
+                    # sda1, sdb2 etc - skip partitions
+                    continue
+                if 'p' in basename and basename[-1].isdigit():
+                    # nvme0n1p1 - skip partitions
+                    continue
+                try:
+                    reader = RawDiskReader(dev_path, sector_size=512, default_timeout_ms=500)
+                    size_gb = reader.disk_size_bytes / (1024**3) if reader.disk_size_bytes > 0 else 0
+                    size_str = f"{size_gb:.2f} GB" if size_gb > 0 else "Unknown Size"
+                    drives.append({
+                        "index": len(drives),
+                        "device_path": dev_path,
+                        "name": f"{basename} ({size_str})",
+                        "size_bytes": reader.disk_size_bytes,
+                        "size_str": size_str,
+                    })
+                    reader.close()
+                except PermissionError:
+                    drives.append({
+                        "index": len(drives),
+                        "device_path": dev_path,
+                        "name": f"{basename} (Permission denied - run with sudo)",
+                        "size_bytes": 0,
+                        "size_str": "Unknown",
+                    })
+                except Exception:
+                    continue
+    else:
+        # Fallback for other Unix-like systems
         drives.append({
             "index": 0,
             "device_path": "mock_drive.img",
@@ -381,35 +633,8 @@ def list_physical_drives() -> List[Dict[str, Any]]:
             "size_bytes": 1024 * 1024 * 100,
             "size_str": "100 MB",
         })
-        return drives
-
-    # Scan PhysicalDrive0 up to PhysicalDrive32
-    for drive_idx in range(32):
-        device_path = rf"\\.\PhysicalDrive{drive_idx}"
-        try:
-            reader = RawDiskReader(device_path, sector_size=512, default_timeout_ms=500)
-            size_gb = reader.disk_size_bytes / (1024**3) if reader.disk_size_bytes > 0 else 0
-            size_str = f"{size_gb:.2f} GB" if size_gb > 0 else "Unknown Size"
-            drives.append({
-                "index": drive_idx,
-                "device_path": device_path,
-                "name": f"PhysicalDrive{drive_idx} ({size_str})",
-                "size_bytes": reader.disk_size_bytes,
-                "size_str": size_str,
-            })
-            reader.close()
-        except PermissionError:
-            # Drive exists but access denied (or needs admin)
-            drives.append({
-                "index": drive_idx,
-                "device_path": device_path,
-                "name": f"PhysicalDrive{drive_idx} (Access Denied / Admin Required)",
-                "size_bytes": 0,
-                "size_str": "Unknown",
-            })
-        except Exception:
-            # Drive does not exist or cannot be opened
-            continue
+    
+    return drives
 
     return drives
 

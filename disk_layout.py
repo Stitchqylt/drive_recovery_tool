@@ -7,6 +7,7 @@ MBR types, and verify NTFS Volume Boot Records (VBR).
 
 import struct
 import uuid
+import zlib
 from typing import List, Dict, Optional, Any
 from raw_io import RawDiskReader
 
@@ -101,6 +102,7 @@ def parse_mbr_partitions(reader: RawDiskReader) -> List[PartitionInfo]:
 def parse_gpt_partitions(reader: RawDiskReader) -> List[PartitionInfo]:
     """
     Parses GUID Partition Table starting at LBA 1.
+    Validates GPT header CRC32 and partition entry array CRC32.
     """
     gpt_header_data = reader.read_sectors(1, 1)
     if not gpt_header_data or len(gpt_header_data) < 512:
@@ -126,6 +128,15 @@ def parse_gpt_partitions(reader: RawDiskReader) -> List[PartitionInfo]:
         entry_size,
     ) = struct.unpack("<8sIIIIQQQQ16sQII", gpt_header_data[:88])
 
+    # Validate GPT header CRC32 (header with CRC32 field zeroed)
+    header_for_crc = bytearray(gpt_header_data[:header_size])
+    # Zero out the CRC32 field at offset 0x10 (16)
+    header_for_crc[0x10:0x14] = b"\x00\x00\x00\x00"
+    computed_crc = zlib.crc32(header_for_crc) & 0xFFFFFFFF
+    if computed_crc != crc32:
+        # Header CRC mismatch - GPT may be corrupted
+        return []
+
     if num_entries == 0 or entry_size < 128:
         return []
 
@@ -135,6 +146,25 @@ def parse_gpt_partitions(reader: RawDiskReader) -> List[PartitionInfo]:
 
     entries_data = reader.read_sectors(entries_lba, sectors_to_read)
     if not entries_data:
+        return []
+
+    # Validate partition entry array CRC32
+    entries_for_crc = entries_data[:total_entry_bytes]
+    entries_crc = zlib.crc32(entries_for_crc) & 0xFFFFFFFF
+    
+    # Read backup GPT header to get the expected partition array CRC32
+    # Backup header is at backup_lba
+    backup_header_data = reader.read_sectors(backup_lba, 1)
+    expected_entries_crc = 0
+    if backup_header_data and len(backup_header_data) >= 88:
+        if backup_header_data[0:8] == b"EFI PART":
+            _, _, _, _, _, _, _, _, _, _, _, _, backup_entry_size = struct.unpack("<8sIIIIQQQQ16sQII", backup_header_data[:88])
+            # The partition entry array CRC32 is at offset 0x58 (88) in the backup header
+            if len(backup_header_data) >= 92:
+                expected_entries_crc = struct.unpack("<I", backup_header_data[88:92])[0]
+    
+    if expected_entries_crc and entries_crc != expected_entries_crc:
+        # Partition array CRC mismatch - entries may be corrupted
         return []
 
     partitions = []

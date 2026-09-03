@@ -92,8 +92,29 @@ class TestMFTFixupArray(unittest.TestCase):
         record[510:512] = b"\xCD\xAB"
         record[1022:1024] = b"\xCD\xAB"
 
-        success = apply_fixup_array(record, record_size=1024, sector_size=512)
+        success, mismatches = apply_fixup_array(record, record_size=1024, sector_size=512)
         self.assertTrue(success)
+        self.assertEqual(mismatches, 0)  # No mismatches - sector ends already have correct USA seq
+        self.assertEqual(record[510:512], b"\x22\x11")
+        self.assertEqual(record[1022:1024], b"\x44\x33")
+
+    def test_fixup_mismatch_detection(self):
+        """Test that fixup mismatches are properly detected."""
+        record = bytearray(1024)
+        record[0:4] = MFT_MAGIC_FILE
+        record[4:6] = struct.pack("<H", 0x30)
+        record[6:8] = struct.pack("<H", 3)
+        record[0x30:0x32] = b"\xCD\xAB"
+        record[0x32:0x34] = b"\x22\x11"
+        record[0x34:0x36] = b"\x44\x33"
+        # Set sector ends to WRONG values (mismatch)
+        record[510:512] = b"\xFF\xFF"
+        record[1022:1024] = b"\xEE\xEE"
+
+        success, mismatches = apply_fixup_array(record, record_size=1024, sector_size=512)
+        self.assertTrue(success)
+        self.assertEqual(mismatches, 2)  # Two sectors had mismatched fixup
+        # Verify restoration still works
         self.assertEqual(record[510:512], b"\x22\x11")
         self.assertEqual(record[1022:1024], b"\x44\x33")
 

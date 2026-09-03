@@ -107,6 +107,10 @@ class RecoveryEngine:
         total_sectors = volume.total_sectors if volume.total_sectors > 0 else 2048000
         self.mapfile = RecoveryMapFile(self.mapfile_path, total_sectors=total_sectors)
 
+        # Retry configuration
+        self.max_read_retries = 3
+        self.retry_base_delay = 0.1  # seconds
+
         self._setup_logging()
 
     def _setup_logging(self):
@@ -144,6 +148,26 @@ class RecoveryEngine:
         timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         with open(self.bad_sectors_path, "a", encoding="utf-8") as f:
             f.write(f"{timestamp}, {sector_lba}, \"{file_path}\"\n")
+
+    def _read_cluster_with_retry(self, lba_offset: int, cluster_index: int, sectors_per_cluster: int) -> Optional[bytes]:
+        """
+        Reads a cluster with exponential backoff retries for marginal sectors.
+        """
+        for attempt in range(self.max_read_retries):
+            if self.stats.is_cancelled:
+                return None
+            cluster_data = self.reader.read_cluster(
+                lba_offset,
+                cluster_index,
+                sectors_per_cluster,
+                timeout_ms=self.timeout_ms,
+            )
+            if cluster_data and len(cluster_data) == sectors_per_cluster * self.volume.bytes_per_sector:
+                return cluster_data
+            if attempt < self.max_read_retries - 1:
+                delay = self.retry_base_delay * (2 ** attempt)
+                time.sleep(delay)
+        return None
 
     def cancel(self):
         self.stats.is_cancelled = True
@@ -262,11 +286,10 @@ class RecoveryEngine:
                         current_lcn = run.lcn + c_idx
                         start_sec = self.volume.lcn_to_sector(current_lcn)
 
-                        cluster_data = self.reader.read_cluster(
+                        cluster_data = self._read_cluster_with_retry(
                             self.volume.partition_start_lba,
                             current_lcn,
                             sec_per_cluster,
-                            timeout_ms=self.timeout_ms,
                         )
                         write_len = min(cluster_size, target_size - bytes_written)
 

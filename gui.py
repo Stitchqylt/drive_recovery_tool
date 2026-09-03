@@ -563,7 +563,7 @@ class RecoveryApp(tk.Tk):
                 self.log_message("Starting Phase 1: Fast Sweep & Adaptive Jump...")
                 scheduler = MultiPassScheduler(volume=volume, mapfile=self.engine.mapfile, dest_dir=dest_dir, timeout_ms=timeout_ms)
                 scheduler.run_phase1_fast_sweep(
-                    progress_callback=lambda cur, tot, msg: self.after(0, lambda: self.sector_grid.update_from_mapfile(self.engine.mapfile)),
+                    progress_callback=lambda cur, tot, msg: self.after(0, lambda: self._safe_update_grid()),
                 )
 
             # Phase 2: Read MFT & Extract Files
@@ -590,7 +590,7 @@ class RecoveryApp(tk.Tk):
                 self.log_message("Starting Phase 3: Scraping bad sector boundaries...")
                 scheduler = MultiPassScheduler(volume=volume, mapfile=self.engine.mapfile, dest_dir=dest_dir, timeout_ms=timeout_ms)
                 scheduler.run_phase3_scraping(
-                    progress_callback=lambda cur, tot, msg: self.after(0, lambda: self.sector_grid.update_from_mapfile(self.engine.mapfile)),
+                    progress_callback=lambda cur, tot, msg: self.after(0, lambda: self._safe_update_grid()),
                 )
 
             # Phase 4: Carving
@@ -674,6 +674,10 @@ class RecoveryApp(tk.Tk):
             )
             # Auto-scroll to current item
             self.file_tree.see(item_id)
+
+    def _safe_update_grid(self):
+        if self.engine:
+            self.sector_grid.update_from_mapfile(self.engine.mapfile)
 
     def _reset_ui_after_recovery(self):
         self.btn_start.config(state=tk.NORMAL)

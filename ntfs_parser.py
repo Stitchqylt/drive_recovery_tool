@@ -64,6 +64,7 @@ class NTFSFileInfo:
         self.resident_data: Optional[bytes] = None
         self.data_runs: List[DataRun] = []
         self.full_path = ""
+        self.attribute_list: Optional[bytes] = None
 
     def __repr__(self) -> str:
         kind = "DIR" if self.is_directory else "FILE"
@@ -126,42 +127,44 @@ class NTFSVolume:
         return self.reader.read_sectors(sector, self.sectors_per_cluster, timeout_ms)
 
 
-def apply_fixup_array(record_data: bytearray, record_size: int = 1024, sector_size: int = 512) -> bool:
+def apply_fixup_array(record_data: bytearray, record_size: int = 1024, sector_size: int = 512) -> Tuple[bool, int]:
     """
     Validates and restores the Update Sequence Array (USA / Fixup) on an MFT record.
     Modifies record_data in-place.
+    Returns (success, mismatch_count).
     """
     if len(record_data) < record_size:
-        return False
+        return False, 0
 
     if record_data[0:4] != MFT_MAGIC_FILE:
-        return False
+        return False, 0
 
     usa_offset = struct.unpack("<H", record_data[4:6])[0]
     usa_count = struct.unpack("<H", record_data[6:8])[0]
 
     if usa_offset + (usa_count * 2) > len(record_data):
-        return False
+        return False, 0
 
     # Extract update sequence number
     usa_seq_num = record_data[usa_offset : usa_offset + 2]
     num_sectors = record_size // sector_size
 
     if usa_count < num_sectors + 1:
-        return False
+        return False, 0
 
+    mismatch_count = 0
     # Verify and replace sector ends
     for i in range(num_sectors):
         sector_end = (i + 1) * sector_size - 2
         current_seq = record_data[sector_end : sector_end + 2]
         if current_seq != usa_seq_num:
             # Fixup mismatch - sector may have partial write or corruption
-            pass
+            mismatch_count += 1
         # Restore original 2 bytes from USA array
         orig_val = record_data[usa_offset + 2 + (i * 2) : usa_offset + 4 + (i * 2)]
         record_data[sector_end : sector_end + 2] = orig_val
 
-    return True
+    return True, mismatch_count
 
 
 def decode_data_runs(run_bytes: bytes) -> List[DataRun]:
@@ -204,6 +207,113 @@ def decode_data_runs(run_bytes: bytes) -> List[DataRun]:
     return runs
 
 
+def parse_attribute_list(attr_list_bytes: bytes) -> List[Tuple[int, int, int]]:
+    """
+    Parses $ATTRIBUTE_LIST entries.
+    Returns list of (attribute_type, record_number, sequence_number).
+    Each entry is 24 bytes minimum (can be larger with name).
+    """
+    entries = []
+    offset = 0
+    while offset + 24 <= len(attr_list_bytes):
+        attr_type = struct.unpack("<I", attr_list_bytes[offset:offset+4])[0]
+        record_length = struct.unpack("<H", attr_list_bytes[offset+4:offset+6])[0]
+        if record_length < 24 or offset + record_length > len(attr_list_bytes):
+            break
+        # Offset 8-15: Starting VCN (8 bytes) - skip
+        # Offset 16-23: Base file reference (8 bytes) - 48-bit record number + 16-bit sequence
+        base_ref = struct.unpack("<Q", attr_list_bytes[offset+16:offset+24])[0]
+        ref_record = base_ref & 0x0000FFFFFFFFFFFF
+        ref_seq = (base_ref >> 48) & 0xFFFF
+        entries.append((attr_type, ref_record, ref_seq))
+        offset += record_length
+    return entries
+
+
+def read_mft_record_by_number(volume: NTFSVolume, record_number: int, record_size: int = 1024) -> Optional[bytes]:
+    """Reads a specific MFT record by its record number."""
+    sectors_per_record = record_size // volume.bytes_per_sector
+    if sectors_per_record == 0:
+        sectors_per_record = 1
+    
+    # Read Record 0 ($MFT) to get its data runs
+    mft_sector0 = volume.lcn_to_sector(volume.mft_start_lcn)
+    record0_bytes = volume.reader.read_sectors(mft_sector0, sectors_per_record)
+    if not record0_bytes:
+        return None
+    
+    record0 = parse_mft_record(record0_bytes, 0, record_size)
+    if not record0 or not record0.data_runs:
+        return None
+    
+    records_per_cluster = volume.bytes_per_cluster // record_size
+    if records_per_cluster == 0:
+        records_per_cluster = 1
+    
+    target_rec_idx = record_number
+    
+    for run in record0.data_runs:
+        if run.is_sparse or run.lcn is None:
+            target_rec_idx -= run.cluster_count * records_per_cluster
+            continue
+        
+        for cluster_i in range(run.cluster_count):
+            cluster_lcn = run.lcn + cluster_i
+            cluster_data = volume.read_cluster(cluster_lcn)
+            if not cluster_data:
+                target_rec_idx -= records_per_cluster
+                continue
+            
+            for r in range(records_per_cluster):
+                if target_rec_idx == 0:
+                    r_offset = r * record_size
+                    if r_offset + record_size <= len(cluster_data):
+                        return cluster_data[r_offset : r_offset + record_size]
+                target_rec_idx -= 1
+            
+            if target_rec_idx < 0:
+                break
+        if target_rec_idx < 0:
+            break
+    
+    return None
+
+
+def resolve_attribute_list(volume: NTFSVolume, file_info: NTFSFileInfo, record_size: int = 1024) -> List[DataRun]:
+    """
+    Follows $ATTRIBUTE_LIST to collect all data runs from extension records.
+    """
+    if not file_info.attribute_list:
+        return file_info.data_runs
+    
+    all_runs = list(file_info.data_runs)
+    attr_list_entries = parse_attribute_list(file_info.attribute_list)
+    
+    for attr_type, ref_record, ref_seq in attr_list_entries:
+        if attr_type != ATTR_DATA:
+            continue
+        
+        # Read the referenced MFT record
+        ext_record_bytes = read_mft_record_by_number(volume, ref_record, record_size)
+        if not ext_record_bytes:
+            continue
+        
+        ext_info = parse_mft_record(ext_record_bytes, ref_record, record_size)
+        if not ext_info:
+            continue
+        
+        # Add data runs from extension record
+        for run in ext_info.data_runs:
+            all_runs.append(run)
+        
+        # Recursively check for nested attribute lists
+        if ext_info.attribute_list:
+            nested_runs = resolve_attribute_list(volume, ext_info, record_size)
+            all_runs.extend(nested_runs)
+    
+    return all_runs
+
+
 def parse_mft_record(record_bytes: bytes, record_number: int, record_size: int = 1024) -> Optional[NTFSFileInfo]:
     """
     Parses a single 1024-byte MFT record into NTFSFileInfo.
@@ -215,7 +325,9 @@ def parse_mft_record(record_bytes: bytes, record_number: int, record_size: int =
         return None
 
     data = bytearray(record_bytes[:record_size])
-    apply_fixup_array(data, record_size)
+    success, mismatch_count = apply_fixup_array(data, record_size)
+    if not success:
+        return None
 
     file_info = NTFSFileInfo(record_number)
     file_info.sequence_number = struct.unpack("<H", data[0x10:0x12])[0]
@@ -289,6 +401,15 @@ def parse_mft_record(record_bytes: bytes, record_number: int, record_size: int =
                 if data_run_offset < attr_len:
                     runs_bytes = bytes(attr_data[data_run_offset:])
                     file_info.data_runs = decode_data_runs(runs_bytes)
+
+        elif attr_type == ATTR_ATTRIBUTE_LIST:
+            # $ATTRIBUTE_LIST - references to additional MFT records for heavily fragmented files
+            if not non_resident:
+                val_len = struct.unpack("<I", attr_data[0x10:0x14])[0]
+                val_offset = struct.unpack("<H", attr_data[0x14:0x16])[0]
+                if val_offset + val_len <= attr_len:
+                    attr_list_data = bytes(attr_data[val_offset : val_offset + val_len])
+                    file_info.attribute_list = attr_list_data
 
         curr_offset += attr_len
 
@@ -382,6 +503,13 @@ def read_all_mft_records(volume: NTFSVolume, max_records: int = 500000, progress
 
     # Reconstruct full directory paths
     build_full_paths(files)
+
+    # Resolve $ATTRIBUTE_LIST for heavily fragmented files
+    for rec_num, f_info in files.items():
+        if f_info.attribute_list:
+            resolved_runs = resolve_attribute_list(volume, f_info, record_size)
+            f_info.data_runs = resolved_runs
+
     return files
 
 

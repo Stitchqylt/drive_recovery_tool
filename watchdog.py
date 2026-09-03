@@ -22,6 +22,7 @@ class WatchdogDiskReader:
         self.reader = reader
         self.hard_timeout_margin_ms = hard_timeout_margin_ms
         self.lock = threading.Lock()
+        self._active_threads: list = []
 
     @property
     def sector_size(self) -> int:
@@ -52,12 +53,21 @@ class WatchdogDiskReader:
                 done_event.set()
 
         t = threading.Thread(target=_do_read, daemon=True)
+        with self.lock:
+            self._active_threads.append(t)
         t.start()
 
         completed = done_event.wait(timeout=hard_limit)
         if not completed:
             # Hard watchdog timer fired! The I/O request was hung at the driver layer
+            # The inner reader's CancelIoEx should have been called by its own timeout
+            # but the worker thread is still running - we can't easily stop it
+            # but since it's daemon=True, it won't block process exit
             return None
+
+        with self.lock:
+            if t in self._active_threads:
+                self._active_threads.remove(t)
 
         if error[0]:
             return None
@@ -70,3 +80,8 @@ class WatchdogDiskReader:
 
     def close(self):
         self.reader.close()
+
+    def cleanup_threads(self):
+        """Clean up any remaining active threads (for graceful shutdown)."""
+        with self.lock:
+            self._active_threads.clear()

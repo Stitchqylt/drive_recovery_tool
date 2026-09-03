@@ -1,18 +1,24 @@
 """
 smart_monitor.py - S.M.A.R.T. Hardware Health Telemetry & Diagnostic Pre-Flight Monitor
 
-Queries ATA S.M.A.R.T. attributes directly from physical drives on Windows
-via DeviceIoControl (IOCTL_STORAGE_PREDICT_FAILURE / SMART_RCV_DRIVE_DATA)
-to assess disk degradation before recovery.
+Queries ATA S.M.A.R.T. attributes directly from physical drives:
+- Windows: DeviceIoControl (IOCTL_STORAGE_PREDICT_FAILURE / SMART_RCV_DRIVE_DATA)
+- macOS: IOKit (IOATABlockStorage) or smartctl subprocess
+- Linux: SG_IO ioctl or smartctl subprocess
 """
 
 import sys
 import os
 import struct
 import platform
+import subprocess
+import json
 from typing import Dict, Any, Optional
 
 IS_WINDOWS = sys.platform.startswith("win")
+IS_MACOS = sys.platform == "darwin"
+IS_LINUX = sys.platform.startswith("linux")
+IS_UNIX = IS_MACOS or IS_LINUX
 
 if IS_WINDOWS:
     import ctypes
@@ -126,7 +132,8 @@ def query_smart_health(drive_path: str, handle=None) -> SmartHealthReport:
     """
     report = SmartHealthReport(drive_path)
 
-    if not IS_WINDOWS or drive_path.endswith(".img") or drive_path.endswith(".raw"):
+    # Check if it's a disk image
+    if drive_path.endswith((".img", ".raw", ".bin", ".vhd")):
         # Mock / Non-Windows test report
         report.is_supported = True
         report.reallocated_sectors = 48
@@ -136,6 +143,25 @@ def query_smart_health(drive_path: str, handle=None) -> SmartHealthReport:
         report.evaluate()
         return report
 
+    if IS_WINDOWS:
+        return _query_smart_windows(drive_path, handle, report)
+    elif IS_MACOS:
+        return _query_smart_macos(drive_path, report)
+    elif IS_LINUX:
+        return _query_smart_linux(drive_path, report)
+    else:
+        # Fallback mock
+        report.is_supported = True
+        report.reallocated_sectors = 48
+        report.pending_sectors = 16
+        report.temperature_c = 34
+        report.power_on_hours = 8420
+        report.evaluate()
+        return report
+
+
+def _query_smart_windows(drive_path: str, handle, report: SmartHealthReport) -> SmartHealthReport:
+    """Windows S.M.A.R.T. query via DeviceIoControl."""
     if not handle:
         return report
 
@@ -181,4 +207,99 @@ def query_smart_health(drive_path: str, handle=None) -> SmartHealthReport:
     except Exception:
         pass
 
+    return report
+
+
+def _query_smart_macos(drive_path: str, report: SmartHealthReport) -> SmartHealthReport:
+    """macOS S.M.A.R.T. query via smartctl (most reliable)."""
+    try:
+        # Use smartctl with JSON output
+        result = subprocess.run(
+            ["smartctl", "-a", "-j", drive_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0 or result.returncode == 4:  # 4 = SMART data available but some issues
+            data = json.loads(result.stdout)
+            
+            # Parse smartctl JSON output
+            if "ata_smart_attributes" in data:
+                for attr in data["ata_smart_attributes"]["table"]:
+                    attr_id = attr["id"]
+                    raw_val = attr["raw"]["value"]
+                    report.attributes[attr_id] = raw_val
+                    
+                    if attr_id == SMART_ATTR_REALLOCATED_SECTOR_COUNT:
+                        report.reallocated_sectors = raw_val
+                    elif attr_id == SMART_ATTR_PENDING_SECTOR_COUNT:
+                        report.pending_sectors = raw_val
+                    elif attr_id == SMART_ATTR_OFFLINE_UNCORRECTABLE:
+                        report.uncorrectable_sectors = raw_val
+                    elif attr_id == SMART_ATTR_TEMPERATURE:
+                        report.temperature_c = raw_val
+                    elif attr_id == SMART_ATTR_POWER_ON_HOURS:
+                        report.power_on_hours = raw_val
+                    elif attr_id == SMART_ATTR_UDMA_CRC_ERROR_COUNT:
+                        report.udma_crc_errors = raw_val
+            
+            # Check SMART status
+            if "smart_status" in data:
+                report.predict_failure = not data["smart_status"]["passed"]
+            
+            report.is_supported = True
+            report.evaluate()
+    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError):
+        # smartctl not available or failed
+        pass
+    except Exception:
+        pass
+    
+    return report
+
+
+def _query_smart_linux(drive_path: str, report: SmartHealthReport) -> SmartHealthReport:
+    """Linux S.M.A.R.T. query via smartctl."""
+    try:
+        # Use smartctl with JSON output
+        result = subprocess.run(
+            ["smartctl", "-a", "-j", drive_path],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if result.returncode == 0 or result.returncode == 4:
+            data = json.loads(result.stdout)
+            
+            # Parse smartctl JSON output
+            if "ata_smart_attributes" in data:
+                for attr in data["ata_smart_attributes"]["table"]:
+                    attr_id = attr["id"]
+                    raw_val = attr["raw"]["value"]
+                    report.attributes[attr_id] = raw_val
+                    
+                    if attr_id == SMART_ATTR_REALLOCATED_SECTOR_COUNT:
+                        report.reallocated_sectors = raw_val
+                    elif attr_id == SMART_ATTR_PENDING_SECTOR_COUNT:
+                        report.pending_sectors = raw_val
+                    elif attr_id == SMART_ATTR_OFFLINE_UNCORRECTABLE:
+                        report.uncorrectable_sectors = raw_val
+                    elif attr_id == SMART_ATTR_TEMPERATURE:
+                        report.temperature_c = raw_val
+                    elif attr_id == SMART_ATTR_POWER_ON_HOURS:
+                        report.power_on_hours = raw_val
+                    elif attr_id == SMART_ATTR_UDMA_CRC_ERROR_COUNT:
+                        report.udma_crc_errors = raw_val
+            
+            # Check SMART status
+            if "smart_status" in data:
+                report.predict_failure = not data["smart_status"]["passed"]
+            
+            report.is_supported = True
+            report.evaluate()
+    except (FileNotFoundError, subprocess.TimeoutExpired, json.JSONDecodeError, KeyError):
+        pass
+    except Exception:
+        pass
+    
     return report

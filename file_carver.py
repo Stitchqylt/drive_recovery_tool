@@ -93,6 +93,7 @@ class FileCarver:
     ) -> List[CarvedFile]:
         """
         Scans sectors for magic headers and carves detected files.
+        Checks at all byte offsets within sectors, not just sector boundaries.
         """
         carved_files = []
         carve_idx = 1
@@ -100,6 +101,7 @@ class FileCarver:
         end_lba = start_lba + sector_count
         chunk_sectors = 128  # Read in 64KB chunks
         sector_size = self.reader.sector_size
+        max_header_len = max(len(sig["header"]) for sig in SIGNATURES)
 
         while current_lba < end_lba:
             if self.is_cancelled:
@@ -114,20 +116,23 @@ class FileCarver:
                 continue
 
             matched_in_chunk = False
-            # Check for signatures at sector boundaries
-            for sec_idx in range(to_read):
-                sec_offset = sec_idx * sector_size
-                sec_bytes = chunk_data[sec_offset : sec_offset + 512]
-                exact_lba = current_lba + sec_idx
-
+            chunk_len = len(chunk_data)
+            
+            # Check for signatures at ALL byte offsets within the chunk
+            byte_offset = 0
+            while byte_offset <= chunk_len - max_header_len:
+                exact_lba = current_lba + (byte_offset // sector_size)
+                sector_offset = byte_offset % sector_size
+                
                 matched_sig = None
                 for sig in SIGNATURES:
-                    if sec_bytes.startswith(sig["header"]):
+                    header = sig["header"]
+                    if chunk_data[byte_offset:byte_offset + len(header)] == header:
                         matched_sig = sig
                         break
 
                 if matched_sig:
-                    carved = self._extract_carved_stream(exact_lba, matched_sig, carve_idx)
+                    carved = self._extract_carved_stream(exact_lba, sector_offset, matched_sig, carve_idx)
                     if carved:
                         carved_files.append(carved)
                         carve_idx += 1
@@ -135,6 +140,8 @@ class FileCarver:
                         current_lba = exact_lba + max(1, sectors_jump)
                         matched_in_chunk = True
                         break
+                
+                byte_offset += 1
 
             if not matched_in_chunk:
                 current_lba += to_read
@@ -144,8 +151,8 @@ class FileCarver:
 
         return carved_files
 
-    def _extract_carved_stream(self, start_lba: int, sig: Dict[str, Any], index: int) -> Optional[CarvedFile]:
-        """Reads stream from start_lba until footer or max_size."""
+    def _extract_carved_stream(self, start_lba: int, sector_offset: int, sig: Dict[str, Any], index: int) -> Optional[CarvedFile]:
+        """Reads stream from start_lba at sector_offset until footer or max_size."""
         sector_size = self.reader.sector_size
         max_bytes = sig["max_size"]
         max_sectors = (max_bytes + sector_size - 1) // sector_size
@@ -155,18 +162,35 @@ class FileCarver:
 
         type_dir = os.path.join(self.dest_dir, ftype)
         os.makedirs(type_dir, exist_ok=True)
-        out_name = f"carved_{index:05d}_lba_{start_lba}.{ext}"
+        out_name = f"carved_{index:05d}_lba_{start_lba}_off_{sector_offset}.{ext}"
         out_path = os.path.join(type_dir, out_name)
 
         collected = bytearray()
         bad_count = 0
         found_footer = False
 
-        # Read sector by sector or in small blocks
+        # Read first sector starting from sector_offset
+        if sector_offset > 0:
+            first_sec = self.reader.read_sectors(start_lba, 1, timeout_ms=self.timeout_ms)
+            if first_sec:
+                collected.extend(first_sec[sector_offset:])
+            else:
+                collected.extend(b"\x00" * (sector_size - sector_offset))
+                bad_count += 1
+            
+            if footer and footer in collected:
+                footer_pos = collected.rfind(footer) + len(footer)
+                collected = collected[:footer_pos]
+                found_footer = True
+        
+        # Read remaining sectors
         for s in range(max_sectors):
             if self.is_cancelled:
                 break
-            sec_data = self.reader.read_sectors(start_lba + s, 1, timeout_ms=self.timeout_ms)
+            if found_footer:
+                break
+                
+            sec_data = self.reader.read_sectors(start_lba + s + (1 if sector_offset > 0 else 0), 1, timeout_ms=self.timeout_ms)
             if sec_data:
                 collected.extend(sec_data)
             else:
@@ -195,6 +219,10 @@ class FileCarver:
 
         if len(collected) < 128:
             return None
+
+        # Trim to max_size
+        if len(collected) > max_bytes:
+            collected = collected[:max_bytes]
 
         status = "RECOVERED" if bad_count == 0 else "PARTIAL"
         if status == "PARTIAL":
