@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Antigravity Raw Drive Recovery Studio</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes sweep {
+      0% { transform: translateY(-100%); opacity: 0; }
+      50% { opacity: 0.6; }
+      100% { transform: translateY(1000%); opacity: 0; }
+    }
+    .radar-sweep {
+      background: linear-gradient(180deg, transparent 0%, rgba(6, 182, 212, 0.25) 50%, rgba(99, 102, 241, 0.6) 100%);
+      animation: sweep 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    .sector-grid {
+      display: grid;
+      grid-template-columns: repeat(48, minmax(0, 1fr));
+      gap: 3px;
+    }
+    .sector-cell {
+      height: 11px;
+      border-radius: 2px;
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: crosshair;
+    }
+    .sector-cell:hover {
+      transform: scale(1.6);
+      z-index: 30;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); }
+    ::-webkit-scrollbar-thumb { background: rgba(51, 65, 85, 0.8); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 1); }
+  </style>
+</head>
+<body class="bg-transparent text-slate-100 antialiased p-3 sm:p-5 selection:bg-cyan-500 selection:text-black">
+
+  <div class="max-w-6xl mx-auto bg-[#090d16] border border-slate-800/80 rounded-2xl shadow-2xl shadow-black/80 overflow-hidden backdrop-blur-xl relative">
+    
+    <!-- Ambient Studio Glows -->
+    <div class="absolute -top-24 -left-24 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+    <!-- Top Navigation Bar -->
+    <header class="px-6 py-4 border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-4 bg-slate-900/60 relative z-10">
+      <div class="flex items-center gap-3.5">
+        <div class="relative flex items-center justify-center">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <svg class="w-5 h-5 text-white animate-pulse" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+              <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+              <line x1="6" y1="6" x2="6.01" y2="6"></line>
+              <line x1="6" y1="18" x2="6.01" y2="18"></line>
+            </svg>
+          </div>
+          <div id="adminIndicator" class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-[#090d16]"></div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-base tracking-tight text-white flex items-center gap-1.5">
+              Recovery<span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-indigo-400">Studio</span>
+              <span class="px-2 py-0.5 text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-md">v1.0 PRO</span>
+            </h1>
+          </div>
+          <p class="text-xs text-slate-400 font-medium flex items-center gap-2">
+            <span>Direct Win32 Overlapped I/O</span>
+            <span class="w-1 h-1 rounded-full bg-slate-600"></span>
+            <span>Zero Kernel OS Freeze</span>
+            <span class="w-1 h-1 rounded-full bg-slate-600"></span>
+            <span id="smartBadge" class="text-emerald-400 font-semibold">S.M.A.R.T. Active</span>
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2.5">
+        <button id="btnRefreshDrives" onclick="loadDrives()" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">
+          🔄 Refresh Drives
+        </button>
+        <button id="btnCopyCli" onclick="copyCliCommand()" class="group flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold rounded-lg bg-gradient-to-r from-slate-800 to-slate-700 hover:from-slate-700 hover:to-slate-600 text-slate-200 border border-slate-600/60 shadow-sm transition active:scale-95">
+          <svg id="copyIcon" class="w-3.5 h-3.5 text-cyan-400 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg>
+          <span id="copyText">Copy CLI Command</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="p-6 space-y-6 relative z-10">
+      
+      <!-- Hardware & Target Configuration Strip -->
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4 p-4 rounded-xl bg-slate-900/70 border border-slate-800/80 shadow-inner">
+        
+        <!-- Drive Selector (Col 5) -->
+        <div class="md:col-span-5 space-y-1.5">
+          <label class="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <span class="flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+              Physical Source Drive
+            </span>
+            <span id="driveHealthTag" class="text-[10px] text-emerald-400 font-mono">S.M.A.R.T.: HEALTHY</span>
+          </label>
+          <div class="relative">
+            <select id="driveSelect" onchange="onDriveChanged()" class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3.5 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition appearance-none cursor-pointer pr-10 font-mono">
+              <option value="1">Scanning drives...</option>
+            </select>
+            <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- NTFS Partition (Col 3) -->
+        <div class="md:col-span-3 space-y-1.5">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">NTFS Partition</label>
+          <div class="relative">
+            <select id="partSelect" class="w-full bg-slate-950 border border-slate-700/80 rounded-lg px-3.5 py-2 text-sm text-slate-100 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 outline-none transition appearance-none cursor-pointer pr-10 font-mono">
+              <option value="1">Primary NTFS Volume</option>
+            </select>
+            <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-400">
+              <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Destination Folder (Col 4) -->
+        <div class="md:col-span-4 space-y-1.5">
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400">Destination Folder</label>
+          <div class="flex gap-2">
+            <input type="text" id="destDir" value="recovered_files" class="flex-1 bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:ring-2 focus:ring-cyan-500/50 outline-none">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Execution Hub & Real-Time Progress -->
+      <div class="p-5 rounded-xl bg-gradient-to-r from-slate-900/90 via-slate-900/60 to-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-5 shadow-lg">
+        
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-3">
+          <button id="btnStart" onclick="toggleRecovery()" class="group relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-sm tracking-wide shadow-lg shadow-emerald-500/25 transition active:scale-95 flex items-center gap-2.5 overflow-hidden">
+            <span class="absolute inset-0 w-full h-full bg-white/20 group-hover:translate-x-full transition-transform duration-500 -translate-x-full -skew-x-12"></span>
+            <svg id="startIcon" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span id="startText">START RECOVERY</span>
+          </button>
+          
+          <button id="btnReset" onclick="resetRecovery()" class="px-4 py-3 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 font-semibold text-sm border border-slate-700/80 transition flex items-center gap-2">
+            <svg class="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Reset
+          </button>
+        </div>
+
+        <!-- Progress Gauge -->
+        <div class="flex-1 min-w-[280px]">
+          <div class="flex justify-between items-center text-xs font-semibold mb-1.5">
+            <span id="statusLabel" class="text-slate-300 flex items-center gap-2">
+              <span id="pulseDot" class="w-2 h-2 rounded-full bg-slate-500"></span>
+              <span>Ready. Select source drive and launch recovery.</span>
+            </span>
+            <span id="pctLabel" class="font-mono text-sm font-bold text-cyan-400">0.0%</span>
+          </div>
+          <div class="w-full bg-slate-950 h-3 rounded-full overflow-hidden border border-slate-800/80 p-0.5 shadow-inner">
+            <div id="progressBar" class="bg-gradient-to-r from-cyan-500 via-indigo-500 to-emerald-400 h-full w-0 rounded-full transition-all duration-150 shadow-sm shadow-cyan-500/50"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Sector Status Heatmap Surface -->
+      <div class="p-5 rounded-xl border border-slate-800/90 bg-slate-950/60 shadow-xl space-y-3 relative overflow-hidden">
+        
+        <div id="radarBeam" class="absolute inset-x-0 h-12 radar-sweep pointer-events-none hidden"></div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div class="flex items-center gap-2.5">
+            <div class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping"></div>
+            <h2 class="text-sm font-bold tracking-tight text-white">Physical Sector Heatmap</h2>
+            <span class="text-xs text-slate-400 font-mono">(Hover cells to inspect LBA bounds)</span>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-4 text-xs font-medium">
+            <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-emerald-500 shadow-sm shadow-emerald-500/50"></div><span class="text-slate-300">Readable / Good</span></div>
+            <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-rose-500 shadow-sm shadow-rose-500/50"></div><span class="text-slate-300">Bad / 0-Filled</span></div>
+            <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-amber-500 shadow-sm shadow-amber-500/50"></div><span class="text-slate-300">Slow / Skipped</span></div>
+            <div class="flex items-center gap-1.5"><div class="w-3 h-3 rounded-sm bg-slate-800 border border-slate-700"></div><span class="text-slate-400">Untouched</span></div>
+          </div>
+        </div>
+
+        <div id="sectorGrid" class="sector-grid py-2 relative"></div>
+        <div id="gridTooltip" class="hidden absolute bg-slate-900/95 border border-slate-700 text-slate-100 text-xs px-3 py-1.5 rounded-lg shadow-xl font-mono pointer-events-none z-50"></div>
+
+        <!-- Metric KPI Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-2">
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center hover:border-emerald-500/40 transition">
+            <div id="statGoodSec" class="text-xl font-mono font-extrabold text-emerald-400">0</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Good Sectors</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center hover:border-rose-500/40 transition">
+            <div id="statBadSec" class="text-xl font-mono font-extrabold text-rose-400">0</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Bad / Timeout (0-Fill)</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center hover:border-emerald-500/40 transition">
+            <div id="statRecovered" class="text-xl font-mono font-extrabold text-emerald-400">0</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">100% Recovered</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center hover:border-amber-500/40 transition">
+            <div id="statPartial" class="text-xl font-mono font-extrabold text-amber-400">0</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Partial (.partial)</div>
+          </div>
+          <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-center hover:border-rose-500/40 transition">
+            <div id="statFailed" class="text-xl font-mono font-extrabold text-rose-400">0</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Failed Files</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- File Tree Explorer & Live Activity Stream -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        
+        <div class="lg:col-span-7 border border-slate-800/90 rounded-xl p-4 bg-slate-950/60 shadow-xl space-y-3">
+          
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+            <div class="flex items-center gap-2">
+              <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                Recovered File Stream
+              </h3>
+              <span id="treeCount" class="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-mono font-semibold">0 files</span>
+            </div>
+
+            <div class="relative min-w-[180px]">
+              <input type="text" id="searchInput" oninput="filterFiles()" placeholder="Filter files (e.g. .pdf, doc)..." class="w-full bg-slate-900 border border-slate-700/80 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:ring-1 focus:ring-cyan-400 outline-none font-mono">
+              <svg class="w-3.5 h-3.5 text-slate-500 absolute right-2.5 top-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div class="flex items-center gap-1.5" id="filterTabs">
+              <button onclick="setFilter('ALL')" id="tabALL" class="px-2.5 py-1 rounded-md bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">All</button>
+              <button onclick="setFilter('RECOVERED')" id="tabRECOVERED" class="px-2.5 py-1 rounded-md bg-slate-900 text-slate-400 hover:text-white font-medium border border-slate-800">Healthy</button>
+              <button onclick="setFilter('PARTIAL')" id="tabPARTIAL" class="px-2.5 py-1 rounded-md bg-slate-900 text-slate-400 hover:text-white font-medium border border-slate-800">Partial</button>
+              <button onclick="setFilter('FAILED')" id="tabFAILED" class="px-2.5 py-1 rounded-md bg-slate-900 text-slate-400 hover:text-white font-medium border border-slate-800">Failed</button>
+            </div>
+
+            <div class="flex items-center gap-2 text-slate-400 font-medium">
+              <span>Sort:</span>
+              <button onclick="toggleSort('name')" class="hover:text-cyan-400 transition font-mono" id="sortNameBtn">Name ↕</button>
+              <button onclick="toggleSort('size')" class="hover:text-cyan-400 transition font-mono" id="sortSizeBtn">Size ↕</button>
+            </div>
+          </div>
+
+          <div class="max-h-64 overflow-y-auto space-y-1.5 pr-1 font-mono text-xs" id="fileTreeContainer">
+            <div class="text-xs text-slate-500 italic py-8 text-center flex flex-col items-center gap-2">
+              <svg class="w-8 h-8 text-slate-700 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+              <span>Click 'START RECOVERY' to begin stream extraction...</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="lg:col-span-5 border border-slate-800/90 rounded-xl p-4 bg-slate-950/60 shadow-xl space-y-3 flex flex-col justify-between">
+          
+          <div class="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 class="text-sm font-bold text-white flex items-center gap-1.5">
+              <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              I/O Journal Stream
+            </h3>
+            <span class="text-[11px] text-emerald-400 font-mono font-semibold flex items-center gap-1">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              recovery.map Active
+            </span>
+          </div>
+
+          <div class="bg-black/90 text-emerald-400 p-3.5 rounded-xl font-mono text-[11px] leading-relaxed max-h-56 overflow-y-auto space-y-1 border border-slate-800/80 shadow-inner flex-1" id="logBox">
+            <div class="text-slate-500">// Direct physical device session initialized</div>
+            <div class="text-slate-400">[00:00:00] [INFO] Drive session ready. Direct Overlapped I/O active.</div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between text-xs text-slate-400">
+            <span class="flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+              Polling: 500ms
+            </span>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const TOTAL_CELLS = 384;
+    const gridEl = document.getElementById('sectorGrid');
+    const cells = [];
+    let isRunning = false;
+    let pollInterval = null;
+    let currentIdx = 0;
+    let goodSectors = 0;
+    let badSectors = 0;
+    let recFiles = 0;
+    let partFiles = 0;
+    let failedFiles = 0;
+    let activeFilter = 'ALL';
+    let sortKey = null;
+    let sortAsc = true;
+    let extractedFiles = [];
+
+    // Initialize Grid
+    const tooltip = document.getElementById('gridTooltip');
+    for (let i = 0; i < TOTAL_CELLS; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'sector-cell bg-slate-800 border border-slate-700/40';
+      cell.dataset.lba = i * 2048;
+      
+      cell.addEventListener('mouseenter', (e) => {
+        const lbaStart = i * 2048;
+        const lbaEnd = lbaStart + 2048;
+        tooltip.innerHTML = `<div><strong>LBA Range:</strong> ${lbaStart.toLocaleString()} - ${lbaEnd.toLocaleString()}</div><div><strong>Cluster:</strong> ${Math.floor(lbaStart/8)} • <strong>State:</strong> ${cell.dataset.state || 'Untouched'}</div>`;
+        tooltip.style.left = `${e.clientX + 10}px`;
+        tooltip.style.top = `${e.clientY - 40}px`;
+        tooltip.classList.remove('hidden');
+      });
+
+      cell.addEventListener('mouseleave', () => {
+        tooltip.classList.add('hidden');
+      });
+
+      gridEl.appendChild(cell);
+      cells.push(cell);
+    }
+
+    // Load drives on startup
+    window.addEventListener('DOMContentLoaded', () => {
+      loadDrives();
+    });
+
+    async function loadDrives() {
+      try {
+        const res = await fetch('/api/drives');
+        if (!res.ok) throw new Error('API offline');
+        const data = await res.json();
+        const sel = document.getElementById('driveSelect');
+        sel.innerHTML = '';
+        data.drives.forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d.index >= 0 ? d.index : d.device_path;
+          opt.innerText = `${d.name} (${d.device_path})`;
+          sel.appendChild(opt);
+        });
+        if (data.drives.length > 0) {
+          onDriveChanged();
+        }
+      } catch (err) {
+        // Fallback simulation mode
+        const sel = document.getElementById('driveSelect');
+        sel.innerHTML = `
+          <option value="1">\\\\.\\PhysicalDrive1 • 500.11 GB (Seagate ST500LM012)</option>
+          <option value="2">\\\\.\\PhysicalDrive2 • 1000.20 GB (WD Blue WD10SPZX)</option>
+        `;
+      }
+    }
+
+    async function onDriveChanged() {
+      const driveVal = document.getElementById('driveSelect').value;
+      try {
+        const [partRes, smartRes] = await Promise.all([
+          fetch('/api/partitions?drive=' + driveVal),
+          fetch('/api/smart?drive=' + driveVal),
+        ]);
+
+        if (partRes.ok) {
+          const partData = await partRes.json();
+          const partSel = document.getElementById('partSelect');
+          partSel.innerHTML = '';
+          if (partData.partitions && partData.partitions.length > 0) {
+            partData.partitions.forEach(p => {
+              const opt = document.createElement('option');
+              opt.value = p.index;
+              opt.innerText = `Part ${p.index}: ${p.name} [${p.is_ntfs ? 'NTFS' : 'Other'}] (${p.size_gb.toFixed(2)} GB)`;
+              partSel.appendChild(opt);
+            });
+          }
+        }
+
+        if (smartRes.ok) {
+          const s = await smartRes.json();
+          const tag = document.getElementById('driveHealthTag');
+          tag.innerText = `S.M.A.R.T.: ${s.health_verdict.split(' ')[0]}`;
+          tag.className = s.verdict_color === 'ROSE' ? 'text-[10px] text-rose-400 font-mono' : (s.verdict_color === 'AMBER' ? 'text-[10px] text-amber-400 font-mono' : 'text-[10px] text-emerald-400 font-mono');
+        }
+      } catch (e) {}
+    }
+
+    async function toggleRecovery() {
+      if (isRunning) {
+        pauseRecovery();
+      } else {
+        startRecovery();
+      }
+    }
+
+    async function startRecovery() {
+      isRunning = true;
+      document.getElementById('btnStart').className = "group relative px-6 py-3 rounded-xl bg-gradient-to-r from-amber-600 to-orange-500 hover:from-amber-500 hover:to-orange-400 text-white font-extrabold text-sm tracking-wide shadow-lg shadow-amber-500/25 transition active:scale-95 flex items-center gap-2.5 overflow-hidden";
+      document.getElementById('startText').innerText = "PAUSE RECOVERY";
+      document.getElementById('startIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+      document.getElementById('statusLabel').innerText = "Recovery in progress (Overlapped Direct I/O)...";
+      document.getElementById('pulseDot').className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+      document.getElementById('radarBeam').classList.remove('hidden');
+
+      const payload = {
+        drive: document.getElementById('driveSelect').value,
+        dest: document.getElementById('destDir').value,
+        timeout: 1000,
+        partition: 1,
+      };
+
+      try {
+        await fetch('/api/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {}
+
+      pollInterval = setInterval(pollStatus, 500);
+    }
+
+    async function pauseRecovery() {
+      isRunning = false;
+      clearInterval(pollInterval);
+      document.getElementById('btnStart').className = "group relative px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-500 hover:from-emerald-500 hover:to-teal-400 text-white font-extrabold text-sm tracking-wide shadow-lg shadow-emerald-500/25 transition active:scale-95 flex items-center gap-2.5 overflow-hidden";
+      document.getElementById('startText').innerText = "RESUME";
+      document.getElementById('startIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+      document.getElementById('statusLabel').innerText = "Paused. Journal state preserved in recovery.map.";
+      document.getElementById('pulseDot').className = "w-2 h-2 rounded-full bg-amber-400";
+      document.getElementById('radarBeam').classList.add('hidden');
+
+      try {
+        await fetch('/api/pause', {method: 'POST'});
+      } catch (e) {}
+    }
+
+    async function pollStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.stats) {
+          const st = data.stats;
+          const pct = st.percent_complete.toFixed(1);
+          document.getElementById('progressBar').style.width = pct + '%';
+          document.getElementById('pctLabel').innerText = pct + '%';
+          document.getElementById('statGoodSec').innerText = st.good_sectors.toLocaleString();
+          document.getElementById('statBadSec').innerText = st.bad_sectors.toLocaleString();
+          document.getElementById('statRecovered').innerText = st.recovered_files;
+          document.getElementById('statPartial').innerText = st.partial_files;
+          document.getElementById('statFailed').innerText = st.failed_files;
+          
+          if (!data.is_running && isRunning) {
+            pauseRecovery();
+            document.getElementById('statusLabel').innerText = "Recovery Finished! Manifest generated.";
+          }
+        }
+
+        if (data.recent_files && data.recent_files.length > 0) {
+          extractedFiles = data.recent_files.map((f, i) => ({
+            id: i,
+            path: f.path,
+            size: f.size > 1048576 ? (f.size/1048576).toFixed(2) + ' MB' : (f.size/1024).toFixed(1) + ' KB',
+            rawSize: f.size,
+            status: f.status,
+          }));
+          document.getElementById('treeCount').innerText = `${extractedFiles.length} files`;
+          renderFileList();
+        }
+
+        if (data.logs && data.logs.length > 0) {
+          const logBox = document.getElementById('logBox');
+          logBox.innerHTML = data.logs.map(l => `<div>${l}</div>`).join('');
+          logBox.scrollTop = logBox.scrollHeight;
+        }
+
+      } catch (e) {}
+    }
+
+    function resetRecovery() {
+      pauseRecovery();
+      currentIdx = 0;
+      goodSectors = 0;
+      badSectors = 0;
+      recFiles = 0;
+      partFiles = 0;
+      failedFiles = 0;
+      extractedFiles = [];
+      cells.forEach(c => {
+        c.className = 'sector-cell bg-slate-800 border border-slate-700/40';
+        c.dataset.state = 'Untouched';
+      });
+      document.getElementById('progressBar').style.width = '0%';
+      document.getElementById('pctLabel').innerText = '0.0%';
+      document.getElementById('statGoodSec').innerText = '0';
+      document.getElementById('statBadSec').innerText = '0';
+      document.getElementById('statRecovered').innerText = '0';
+      document.getElementById('statPartial').innerText = '0';
+      document.getElementById('statFailed').innerText = '0';
+      renderFileList();
+      document.getElementById('startText').innerText = "START RECOVERY";
+      document.getElementById('statusLabel').innerText = "Ready. Select source drive and launch recovery.";
+    }
+
+    function setFilter(filter) {
+      activeFilter = filter;
+      ['ALL', 'RECOVERED', 'PARTIAL', 'FAILED'].forEach(tab => {
+        const btn = document.getElementById(`tab${tab}`);
+        if (tab === filter) {
+          btn.className = "px-2.5 py-1 rounded-md bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30";
+        } else {
+          btn.className = "px-2.5 py-1 rounded-md bg-slate-900 text-slate-400 hover:text-white font-medium border border-slate-800";
+        }
+      });
+      renderFileList();
+    }
+
+    function toggleSort(key) {
+      if (sortKey === key) {
+        sortAsc = !sortAsc;
+      } else {
+        sortKey = key;
+        sortAsc = true;
+      }
+      document.getElementById('sortNameBtn').innerText = `Name ${sortKey === 'name' ? (sortAsc ? '↑' : '↓') : '↕'}`;
+      document.getElementById('sortSizeBtn').innerText = `Size ${sortKey === 'size' ? (sortAsc ? '↑' : '↓') : '↕'}`;
+      renderFileList();
+    }
+
+    function filterFiles() {
+      renderFileList();
+    }
+
+    function renderFileList() {
+      const query = document.getElementById('searchInput').value.toLowerCase().trim();
+      let list = extractedFiles.filter(f => {
+        const matchesFilter = activeFilter === 'ALL' || f.status === activeFilter;
+        const matchesQuery = !query || f.path.toLowerCase().includes(query);
+        return matchesFilter && matchesQuery;
+      });
+
+      if (sortKey === 'name') {
+        list.sort((a, b) => sortAsc ? a.path.localeCompare(b.path) : b.path.localeCompare(a.path));
+      } else if (sortKey === 'size') {
+        list.sort((a, b) => sortAsc ? a.rawSize - b.rawSize : b.rawSize - a.rawSize);
+      }
+
+      const container = document.getElementById('fileTreeContainer');
+      if (list.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-500 italic py-6 text-center">${extractedFiles.length === 0 ? 'Click Start to stream recovered files...' : 'No files match current filter.'}</div>`;
+        return;
+      }
+
+      container.innerHTML = list.map(f => {
+        let badge = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30';
+        let icon = '🟢';
+        if (f.status === 'PARTIAL') {
+          badge = 'bg-amber-500/10 text-amber-400 border-amber-500/30';
+          icon = '🟡';
+        } else if (f.status === 'FAILED') {
+          badge = 'bg-rose-500/10 text-rose-400 border-rose-500/30';
+          icon = '🔴';
+        }
+
+        return `
+          <div class="flex justify-between items-center p-2 rounded-lg bg-slate-900/60 border border-slate-800/80 hover:bg-slate-900 transition">
+            <div class="flex items-center gap-2 truncate flex-1 pr-2">
+              <span class="text-xs">${icon}</span>
+              <span class="truncate font-medium text-slate-200">${f.path}</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-slate-400 font-mono">${f.size}</span>
+              <span class="px-2 py-0.5 text-[10px] font-bold rounded-md border font-mono ${badge}">${f.status}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function copyCliCommand() {
+      const drive = document.getElementById('driveSelect').value;
+      const dest = document.getElementById('destDir').value;
+      const cmd = `python main.py --cli --drive ${drive} --dest "${dest}" --multi-pass --timeout 1000`;
+      navigator.clipboard.writeText(cmd);
+      
+      const copyText = document.getElementById('copyText');
+      const copyIcon = document.getElementById('copyIcon');
+      copyText.innerText = "Copied to Clipboard!";
+      copyIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>';
+      setTimeout(() => {
+        copyText.innerText = "Copy CLI Command";
+        copyIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/>';
+      }, 2000);
+    }
+  </script>
+</body>
+</html>

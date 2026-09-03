@@ -1,0 +1,54 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "antigravity-recovery"
+version = "1.0.0"
+description = "Zero-Freeze Raw Physical Drive & NTFS Live File Recovery Engine for Windows"
+readme = "README.md"
+authors = [{ name = "Antigravity Engineering", email = "dev@antigravity.recovery" }]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Win32 (MS Windows)",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: Developers",
+    "Topic :: System :: Recovery Tools",
+    "Topic :: System :: Filesystems",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+keywords = ["data-recovery", "bad-sectors", "ntfs", "raw-disk", "forensics", "ddrescue", "direct-io"]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+antigravity-recovery = "main:main"
+agy-recovery = "main:main"
+
+[tool.setuptools]
+py-modules = [
+    "main",
+    "raw_io",
+    "disk_layout",
+    "ntfs_parser",
+    "recovery_engine",
+    "mapfile",
+    "watchdog",
+    "multipass_scheduler",
+    "file_carver",
+    "smart_monitor",
+    "hash_verifier",
+    "audit_report",
+    "cli",
+    "gui",
+    "web_studio",
+]
+include-package-data = true
