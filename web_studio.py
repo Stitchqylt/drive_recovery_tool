@@ -31,15 +31,29 @@ from raw_io import RawDiskReader, is_admin
 from disk_layout import scan_partitions
 from ntfs_parser import NTFSVolume, read_all_mft_records, NTFSFileInfo
 from recovery_engine import RecoveryEngine
+from mapfile import RecoveryMapFile
+from multipass_scheduler import MultiPassScheduler
+from file_carver import FileCarver
 
 IS_WINDOWS = sys.platform.startswith("win")
 IS_MACOS = sys.platform == "darwin"
 IS_LINUX = sys.platform.startswith("linux")
 
 SCAN_LOCK = threading.Lock()
+SESSION_LOCK = threading.RLock()
 SCAN_THREAD = None
 CANCEL_SCAN = threading.Event()
 PAUSE_SCAN = threading.Event()
+
+
+def _is_safe_path(path: str, allowed_root: str) -> bool:
+    """Validate that path is within allowed_root to prevent path traversal."""
+    try:
+        abs_path = os.path.abspath(path)
+        abs_root = os.path.abspath(allowed_root)
+        return abs_path.startswith(abs_root + os.sep) or abs_path == abs_root
+    except Exception:
+        return False
 
 # Excluded developer and system caches that pollute real user file recovery
 EXCLUDED_DIRS = {
@@ -48,7 +62,18 @@ EXCLUDED_DIRS = {
     "AppData", "Application Support", ".rustup", "site-packages"
 }
 
+# Recovery worker state
+RECOVERY_WORKER = {
+    "thread": None,
+    "cancel_event": threading.Event(),
+    "pause_event": threading.Event(),
+}
+
 ACTIVE_SESSION = {
+    "engine": None,
+    "volume": None,
+    "reader": None,
+    "partition": None,
     "is_running": False,
     "is_paused": False,
     "selected_drive_path": "",
@@ -59,6 +84,7 @@ ACTIVE_SESSION = {
     "start_time": None,
     "elapsed_seconds": 0,
     "all_files": [],          # Live dynamically populated files list
+    "file_map": {},           # Map of record_id -> NTFSFileInfo for recovery
     "stats": {
         "files_found": 0,
         "good_files": 0,
@@ -73,6 +99,8 @@ ACTIVE_SESSION = {
         "retries": 1,
         "safe_mode": True,
         "auto_zero_fill": True,
+        "include_system": False,
+        "reverse": False,
     }
 }
 
@@ -388,7 +416,7 @@ def execute_background_scan(target_path: str):
     CANCEL_SCAN.clear()
     PAUSE_SCAN.clear()
 
-    with SCAN_LOCK:
+    with SESSION_LOCK:
         ACTIVE_SESSION["all_files"] = []
         ACTIVE_SESSION["stats"] = {
             "files_found": 0,
@@ -437,21 +465,24 @@ def execute_background_scan(target_path: str):
                             "type": mime,
                             "real_path": None,
                         }
-                        ACTIVE_SESSION["all_files"].append(file_obj)
-                        ACTIVE_SESSION["stats"]["files_found"] += 1
-                        if status == "Good":
-                            ACTIVE_SESSION["stats"]["good_files"] += 1
-                        else:
-                            ACTIVE_SESSION["stats"]["partial_files"] += 1
-                        ACTIVE_SESSION["stats"]["total_bytes"] += file_info.file_size
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["all_files"].append(file_obj)
+                            ACTIVE_SESSION["stats"]["files_found"] += 1
+                            if status == "Good":
+                                ACTIVE_SESSION["stats"]["good_files"] += 1
+                            else:
+                                ACTIVE_SESSION["stats"]["partial_files"] += 1
+                            ACTIVE_SESSION["stats"]["total_bytes"] += file_info.file_size
 
                     pct = min(100.0, (record_idx / max(1, total_records)) * 100.0)
-                    ACTIVE_SESSION["stats"]["percent_complete"] = round(pct, 1)
+                    with SESSION_LOCK:
+                        ACTIVE_SESSION["stats"]["percent_complete"] = round(pct, 1)
 
                 read_all_mft_records(vol, max_records=max_rec, progress_callback=_mft_progress)
                 reader.close()
-                ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
-                ACTIVE_SESSION["is_running"] = False
+                with SESSION_LOCK:
+                    ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
+                    ACTIVE_SESSION["is_running"] = False
                 return
             else:
                 reader.close()
@@ -518,10 +549,11 @@ def execute_background_scan(target_path: str):
                             "type": "macOS Application",
                             "real_path": full_app,
                         }
-                        ACTIVE_SESSION["all_files"].append(file_obj)
-                        ACTIVE_SESSION["stats"]["files_found"] += 1
-                        ACTIVE_SESSION["stats"]["good_files"] += 1
-                        file_count += 1
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["all_files"].append(file_obj)
+                            ACTIVE_SESSION["stats"]["files_found"] += 1
+                            ACTIVE_SESSION["stats"]["good_files"] += 1
+                            file_count += 1
                     except Exception:
                         pass
 
@@ -549,10 +581,11 @@ def execute_background_scan(target_path: str):
                                 "type": "Folder",
                                 "real_path": full_dir,
                             }
-                            ACTIVE_SESSION["all_files"].append(file_obj)
-                            ACTIVE_SESSION["stats"]["files_found"] += 1
-                            ACTIVE_SESSION["stats"]["good_files"] += 1
-                            file_count += 1
+                            with SESSION_LOCK:
+                                ACTIVE_SESSION["all_files"].append(file_obj)
+                                ACTIVE_SESSION["stats"]["files_found"] += 1
+                                ACTIVE_SESSION["stats"]["good_files"] += 1
+                                file_count += 1
                     except Exception:
                         pass
 
@@ -601,16 +634,17 @@ def execute_background_scan(target_path: str):
                             "real_path": full_p,
                         }
 
-                        ACTIVE_SESSION["all_files"].append(file_obj)
-                        ACTIVE_SESSION["stats"]["files_found"] += 1
-                        if status == "Good":
-                            ACTIVE_SESSION["stats"]["good_files"] += 1
-                        else:
-                            ACTIVE_SESSION["stats"]["partial_files"] += 1
-                        ACTIVE_SESSION["stats"]["total_bytes"] += sz
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["all_files"].append(file_obj)
+                            ACTIVE_SESSION["stats"]["files_found"] += 1
+                            if status == "Good":
+                                ACTIVE_SESSION["stats"]["good_files"] += 1
+                            else:
+                                ACTIVE_SESSION["stats"]["partial_files"] += 1
+                            ACTIVE_SESSION["stats"]["total_bytes"] += sz
 
-                        file_count += 1
-                        ACTIVE_SESSION["stats"]["percent_complete"] = min(100.0, round((file_count / 300) * 100.0, 1))
+                            file_count += 1
+                            ACTIVE_SESSION["stats"]["percent_complete"] = min(100.0, round((file_count / 300) * 100.0, 1))
 
                         # Smooth streaming cadence
                         time.sleep(0.012)
@@ -620,8 +654,9 @@ def execute_background_scan(target_path: str):
     except Exception as e:
         print(f"[-] Scan traversal error: {e}")
 
-    ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
-    ACTIVE_SESSION["is_running"] = False
+    with SESSION_LOCK:
+        ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
+        ACTIVE_SESSION["is_running"] = False
     print(f"[+] Prioritized scan complete: {len(ACTIVE_SESSION['all_files'])} user files ({format_bytes_human(ACTIVE_SESSION['stats']['total_bytes'])}).")
 
 
@@ -646,38 +681,68 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/drives":
             drives = list_all_storage_devices()
-            self._send_json({
-                "drives": drives,
-                "selected_drive": ACTIVE_SESSION["selected_drive_path"],
-                "selected_name": ACTIVE_SESSION["selected_drive_name"],
-                "selected_size": ACTIVE_SESSION["selected_drive_size"],
-                "is_admin": is_admin(),
-            })
+            with SESSION_LOCK:
+                self._send_json({
+                    "drives": drives,
+                    "selected_drive": ACTIVE_SESSION["selected_drive_path"],
+                    "selected_name": ACTIVE_SESSION["selected_drive_name"],
+                    "selected_size": ACTIVE_SESSION["selected_drive_size"],
+                    "is_admin": is_admin(),
+                })
+
+        elif path == "/api/partitions":
+            qs = parse_qs(parsed.query)
+            drive = qs.get("drive", [ACTIVE_SESSION["selected_drive_path"]])[0]
+            device_path = drive
+            if not os.path.exists(device_path) and not device_path.startswith(r"\\.\\"):
+                device_path = rf"\\.\PhysicalDrive{drive}" if drive.isdigit() else drive
+            try:
+                reader = RawDiskReader(device_path, sector_size=512, default_timeout_ms=1000)
+                parts = scan_partitions(reader)
+                part_list = [{
+                    "index": p.index,
+                    "name": p.name,
+                    "start_lba": p.start_lba,
+                    "size_gb": p.size_gb,
+                    "is_ntfs": p.is_ntfs,
+                    "size_str": f"{p.size_gb:.2f} GB",
+                } for p in parts]
+                reader.close()
+                self._send_json({"success": True, "partitions": part_list, "device_path": device_path})
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e), "partitions": []})
 
         elif path == "/api/status":
-            if ACTIVE_SESSION["start_time"] and ACTIVE_SESSION["is_running"]:
-                ACTIVE_SESSION["elapsed_seconds"] = int(time.time() - ACTIVE_SESSION["start_time"])
-
-            self._send_json({
-                "is_running": ACTIVE_SESSION["is_running"],
-                "is_paused": ACTIVE_SESSION["is_paused"],
-                "selected_drive_name": ACTIVE_SESSION["selected_drive_name"],
-                "selected_drive_path": ACTIVE_SESSION["selected_drive_path"],
-                "selected_drive_size": ACTIVE_SESSION["selected_drive_size"],
-                "stats": ACTIVE_SESSION["stats"],
-                "elapsed_seconds": ACTIVE_SESSION["elapsed_seconds"],
-                "files": ACTIVE_SESSION["all_files"],
-                "dest_dir": ACTIVE_SESSION["dest_dir"],
-            })
+            with SESSION_LOCK:
+                if ACTIVE_SESSION["start_time"] and ACTIVE_SESSION["is_running"]:
+                    ACTIVE_SESSION["elapsed_seconds"] = int(time.time() - ACTIVE_SESSION["start_time"])
+                status_data = {
+                    "is_running": ACTIVE_SESSION["is_running"],
+                    "is_paused": ACTIVE_SESSION["is_paused"],
+                    "selected_drive_name": ACTIVE_SESSION["selected_drive_name"],
+                    "selected_drive_path": ACTIVE_SESSION["selected_drive_path"],
+                    "selected_drive_size": ACTIVE_SESSION["selected_drive_size"],
+                    "stats": ACTIVE_SESSION["stats"],
+                    "elapsed_seconds": ACTIVE_SESSION["elapsed_seconds"],
+                    "files": ACTIVE_SESSION["all_files"],
+                    "dest_dir": ACTIVE_SESSION["dest_dir"],
+                }
+            self._send_json(status_data)
 
         elif path == "/api/preview_meta":
             qs = parse_qs(parsed.query)
             file_id_str = qs.get("id", ["0"])[0]
             try:
                 file_id = int(file_id_str)
-                matched = next((f for f in ACTIVE_SESSION["all_files"] if f.get("id") == file_id), None)
+                with SESSION_LOCK:
+                    matched = next((f for f in ACTIVE_SESSION["all_files"] if f.get("id") == file_id), None)
                 if matched and matched.get("real_path") and os.path.exists(matched["real_path"]):
                     real_p = matched["real_path"]
+                    # Security: validate path is within user home or scan root
+                    user_home = os.path.expanduser("~")
+                    if not _is_safe_path(real_p, user_home):
+                        self._send_json({"error": "Access denied: path outside allowed root"}, 403)
+                        return
                     res = get_file_preview_metadata(file_id, real_p, matched)
                     self._send_json(res)
                     return
@@ -690,9 +755,15 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             file_id_str = qs.get("id", ["0"])[0]
             try:
                 file_id = int(file_id_str)
-                matched = next((f for f in ACTIVE_SESSION["all_files"] if f.get("id") == file_id), None)
+                with SESSION_LOCK:
+                    matched = next((f for f in ACTIVE_SESSION["all_files"] if f.get("id") == file_id), None)
                 if matched and matched.get("real_path") and os.path.exists(matched["real_path"]):
                     real_p = matched["real_path"]
+                    # Security: validate path is within user home or scan root
+                    user_home = os.path.expanduser("~")
+                    if not _is_safe_path(real_p, user_home):
+                        self._send_json({"error": "Access denied: path outside allowed root"}, 403)
+                        return
                     if os.path.isdir(real_p):
                         self._send_json({"error": "Directory preview not available via raw stream"})
                         return
@@ -721,7 +792,8 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "No preview available"})
 
         elif path == "/api/sessions":
-            dest = ACTIVE_SESSION["dest_dir"]
+            with SESSION_LOCK:
+                dest = ACTIVE_SESSION["dest_dir"]
             map_file = os.path.join(dest, "recovery.map")
             sessions = []
             if os.path.exists(map_file):
@@ -743,7 +815,37 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             self._send_json({"sessions": sessions})
 
         elif path == "/api/settings":
-            self._send_json({"settings": ACTIVE_SESSION["settings"]})
+            with SESSION_LOCK:
+                self._send_json({"settings": ACTIVE_SESSION["settings"]})
+
+        elif path == "/api/manifest":
+            # Serve recovery_manifest.csv
+            with SESSION_LOCK:
+                dest_dir = ACTIVE_SESSION["dest_dir"]
+            manifest_path = os.path.join(dest_dir, "recovery_manifest.csv")
+            if os.path.exists(manifest_path):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/csv")
+                self.send_header("Content-Disposition", f'attachment; filename="recovery_manifest.csv"')
+                self.end_headers()
+                with open(manifest_path, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self._send_json({"error": "No manifest found"}, 404)
+
+        elif path == "/api/audit_report":
+            # Serve recovery_audit_report.html
+            with SESSION_LOCK:
+                dest_dir = ACTIVE_SESSION["dest_dir"]
+            report_path = os.path.join(dest_dir, "recovery_audit_report.html")
+            if os.path.exists(report_path):
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                with open(report_path, "rb") as f:
+                    self.wfile.write(f.read())
+            else:
+                self._send_json({"error": "No audit report found"}, 404)
 
         else:
             self.send_response(404)
@@ -754,6 +856,10 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
         path = parsed.path
 
         content_len = int(self.headers.get("Content-Length", 0))
+        # Limit request body size to 1MB to prevent DoS
+        if content_len > 1024 * 1024:
+            self._send_json({"error": "Request body too large"}, 413)
+            return
         body = self.rfile.read(content_len) if content_len > 0 else b"{}"
         data = json.loads(body.decode("utf-8")) if body else {}
 
@@ -761,19 +867,21 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             dev_path = data.get("device_path", "")
             dev_name = data.get("name", dev_path)
             dev_size = data.get("size_str", "")
-            ACTIVE_SESSION["selected_drive_path"] = dev_path
-            ACTIVE_SESSION["selected_drive_name"] = dev_name
-            ACTIVE_SESSION["selected_drive_size"] = dev_size
+            with SESSION_LOCK:
+                ACTIVE_SESSION["selected_drive_path"] = dev_path
+                ACTIVE_SESSION["selected_drive_name"] = dev_name
+                ACTIVE_SESSION["selected_drive_size"] = dev_size
             self._send_json({"success": True, "message": f"Selected {dev_name}"})
 
         elif path == "/api/start":
-            target = data.get("target_path", ACTIVE_SESSION["selected_drive_path"]) or ACTIVE_SESSION["selected_drive_path"]
-            dest = data.get("dest", ACTIVE_SESSION["dest_dir"])
-            timeout = int(data.get("timeout", ACTIVE_SESSION["timeout_ms"]))
+            with SESSION_LOCK:
+                target = data.get("target_path", ACTIVE_SESSION["selected_drive_path"]) or ACTIVE_SESSION["selected_drive_path"]
+                dest = data.get("dest", ACTIVE_SESSION["dest_dir"])
+                timeout = int(data.get("timeout", ACTIVE_SESSION["timeout_ms"]))
 
-            ACTIVE_SESSION["dest_dir"] = os.path.abspath(dest)
-            ACTIVE_SESSION["timeout_ms"] = timeout
-            os.makedirs(ACTIVE_SESSION["dest_dir"], exist_ok=True)
+                ACTIVE_SESSION["dest_dir"] = os.path.abspath(dest)
+                ACTIVE_SESSION["timeout_ms"] = timeout
+                os.makedirs(ACTIVE_SESSION["dest_dir"], exist_ok=True)
 
             global SCAN_THREAD
             SCAN_THREAD = threading.Thread(target=execute_background_scan, args=(target,), daemon=True)
@@ -782,16 +890,19 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             self._send_json({"success": True, "message": "Scan started"})
 
         elif path == "/api/pause":
-            ACTIVE_SESSION["is_paused"] = not ACTIVE_SESSION["is_paused"]
-            if ACTIVE_SESSION["is_paused"]:
+            with SESSION_LOCK:
+                ACTIVE_SESSION["is_paused"] = not ACTIVE_SESSION["is_paused"]
+                is_paused = ACTIVE_SESSION["is_paused"]
+            if is_paused:
                 PAUSE_SCAN.set()
             else:
                 PAUSE_SCAN.clear()
-            self._send_json({"success": True, "is_paused": ACTIVE_SESSION["is_paused"]})
+            self._send_json({"success": True, "is_paused": is_paused})
 
         elif path == "/api/recover_files":
             file_ids = data.get("file_ids", [])
-            dest_dir = os.path.abspath(data.get("dest_dir", ACTIVE_SESSION["dest_dir"]))
+            with SESSION_LOCK:
+                dest_dir = os.path.abspath(data.get("dest_dir", ACTIVE_SESSION["dest_dir"]))
             os.makedirs(dest_dir, exist_ok=True)
 
             recovered_count = 0
@@ -799,34 +910,111 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             failed_count = 0
 
             for f_id in file_ids:
-                matching = [f for f in ACTIVE_SESSION["all_files"] if f.get("id") == f_id]
-                if matching:
-                    f = matching[0]
-                    clean_name = f["name"].replace(".partial", "")
-                    out_path = os.path.join(dest_dir, clean_name)
+                with SESSION_LOCK:
+                    matching = [f for f in ACTIVE_SESSION["all_files"] if f.get("id") == f_id]
+                if not matching:
+                    failed_count += 1
+                    continue
 
-                    if f.get("real_path") and os.path.exists(f["real_path"]):
-                        try:
-                            shutil.copy2(f["real_path"], out_path)
+                f = matching[0]
+                clean_name = f["name"].replace(".partial", "")
+                
+                # Handle relative path cleanly
+                rel_p = f.get("path", "").strip("\\/ ")
+                if rel_p and rel_p not in (".", "\\", "/"):
+                    target_subfolder = os.path.join(dest_dir, rel_p)
+                else:
+                    target_subfolder = dest_dir
+
+                os.makedirs(target_subfolder, exist_ok=True)
+                out_path = os.path.join(target_subfolder, clean_name)
+
+                # Avoid accidental name collisions for files
+                if os.path.exists(out_path) and not f.get("is_folder"):
+                    base_n, ext_n = os.path.splitext(clean_name)
+                    counter = 1
+                    while os.path.exists(out_path):
+                        out_path = os.path.join(target_subfolder, f"{base_n} ({counter}){ext_n}")
+                        counter += 1
+
+                # 1. Raw Disk NTFS Files (no real_path in filesystem)
+                if not f.get("real_path"):
+                    with SESSION_LOCK:
+                        f_info = ACTIVE_SESSION["file_map"].get(f_id)
+                        volume = ACTIVE_SESSION.get("volume")
+                        timeout = ACTIVE_SESSION.get("timeout_ms", 1000)
+                        include_sys = ACTIVE_SESSION["settings"].get("include_system", False)
+                        target_exts = ACTIVE_SESSION["settings"].get("extensions", None)
+                        reverse = ACTIVE_SESSION["settings"].get("reverse", False)
+                        dest_dir_session = ACTIVE_SESSION["dest_dir"]
+
+                    if f_info and volume:
+                        engine = ACTIVE_SESSION.get("engine")
+                        if engine is None:
+                            engine = RecoveryEngine(
+                                volume=volume,
+                                dest_dir=dest_dir_session,
+                                timeout_ms=timeout,
+                                include_system_files=include_sys,
+                                target_extensions=target_exts,
+                                reverse_direction=reverse,
+                            )
+                            with SESSION_LOCK:
+                                ACTIVE_SESSION["engine"] = engine
+
+                        status = engine.recover_file(f_info)
+                        if status == "RECOVERED":
                             recovered_count += 1
-                        except Exception:
-                            try:
-                                with open(out_path, "wb") as out_f:
-                                    out_f.write(b"RECOVERED_REPAIRED_BLOCK\x00\x00\x00\x00" * 100)
-                                partial_count += 1
-                            except Exception:
-                                failed_count += 1
-                    else:
-                        try:
-                            with open(out_path, "wb") as out_f:
-                                if f["status"] == "Partial":
-                                    out_f.write(b"RECOVERED_PARTIAL_FILE_DATA_BLOCK\x00\x00\x00\x00" * 150)
-                                    partial_count += 1
-                                else:
-                                    out_f.write(b"RECOVERED_100_PERCENT_CLEAN_DATA\xAA\xBB\xCC" * 200)
-                                    recovered_count += 1
-                        except Exception:
+                        elif status == "PARTIAL":
+                            partial_count += 1
+                        else:
                             failed_count += 1
+                    else:
+                        failed_count += 1
+                    continue
+
+                # 2. Storage / Physical Drive Files with real_path
+                real_p = f["real_path"]
+                if not os.path.exists(real_p):
+                    failed_count += 1
+                    continue
+
+                try:
+                    if os.path.isdir(real_p):
+                        # Entire Folder or macOS .app bundle directory
+                        dest_folder_path = os.path.join(target_subfolder, clean_name)
+                        shutil.copytree(real_p, dest_folder_path, dirs_exist_ok=True)
+                        recovered_count += 1
+                    else:
+                        # Direct file copy
+                        try:
+                            shutil.copy2(real_p, out_path)
+                            recovered_count += 1
+                        except (OSError, IOError, PermissionError) as copy_err:
+                            # Bad sector or I/O failure: block-by-block read with 0-filling for bad blocks
+                            bytes_salvaged = 0
+                            with open(real_p, "rb") as in_f, open(out_path, "wb") as out_f:
+                                block_size = 4096
+                                while True:
+                                    try:
+                                        chunk = in_f.read(block_size)
+                                        if not chunk:
+                                            break
+                                        out_f.write(chunk)
+                                        bytes_salvaged += len(chunk)
+                                    except Exception:
+                                        out_f.write(b"\x00" * block_size)
+                                        try:
+                                            in_f.seek(in_f.tell() + block_size)
+                                        except Exception:
+                                            break
+                            if bytes_salvaged > 0:
+                                partial_count += 1
+                            else:
+                                failed_count += 1
+                except Exception as ex:
+                    print(f"[-] Recovery error on {real_p}: {ex}")
+                    failed_count += 1
 
             self._send_json({
                 "success": True,
@@ -837,24 +1025,384 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             })
 
         elif path == "/api/open_folder":
-            folder_path = data.get("path", ACTIVE_SESSION["dest_dir"])
-            if not os.path.exists(folder_path):
-                os.makedirs(folder_path, exist_ok=True)
+            with SESSION_LOCK:
+                dest_dir = ACTIVE_SESSION["dest_dir"]
+            folder_path = data.get("path", dest_dir)
+            abs_folder = os.path.abspath(folder_path)
+            abs_dest = os.path.abspath(dest_dir)
+            # Security: only allow opening folders within the recovery destination
+            if not _is_safe_path(abs_folder, abs_dest):
+                self._send_json({"success": False, "error": "Access denied: path outside recovery directory"}, 403)
+                return
+            if not os.path.exists(abs_folder):
+                os.makedirs(abs_folder, exist_ok=True)
             try:
                 if IS_WINDOWS:
-                    os.startfile(folder_path)
+                    os.startfile(abs_folder)
                 elif IS_MACOS:
-                    subprocess.run(["open", folder_path])
+                    subprocess.run(["open", abs_folder])
                 else:
-                    subprocess.run(["xdg-open", folder_path])
-                self._send_json({"success": True, "message": f"Opened {folder_path}"})
+                    subprocess.run(["xdg-open", abs_folder])
+                self._send_json({"success": True, "message": f"Opened {abs_folder}"})
             except Exception as e:
                 self._send_json({"success": False, "error": str(e)})
 
         elif path == "/api/settings":
             new_settings = data.get("settings", {})
-            ACTIVE_SESSION["settings"].update(new_settings)
-            self._send_json({"success": True, "settings": ACTIVE_SESSION["settings"]})
+            with SESSION_LOCK:
+                ACTIVE_SESSION["settings"].update(new_settings)
+                settings_copy = ACTIVE_SESSION["settings"].copy()
+            self._send_json({"success": True, "settings": settings_copy})
+
+        elif path == "/api/scan_mft":
+            with SESSION_LOCK:
+                drive = data.get("drive", ACTIVE_SESSION["selected_drive_path"])
+                partition_idx = data.get("partition", 1) - 1
+                device_path = drive
+                if not os.path.exists(device_path) and not device_path.startswith(r"\\.\\"):
+                    device_path = rf"\\.\PhysicalDrive{drive}" if drive.isdigit() else drive
+
+            try:
+                reader = RawDiskReader(device_path, sector_size=512, default_timeout_ms=ACTIVE_SESSION["timeout_ms"])
+                parts = scan_partitions(reader)
+                if partition_idx >= len(parts):
+                    reader.close()
+                    self._send_json({"success": False, "error": "Invalid partition index"})
+                    return
+
+                target_part = parts[partition_idx]
+                if not target_part.is_ntfs:
+                    reader.close()
+                    self._send_json({"success": False, "error": "Selected partition is not NTFS"})
+                    return
+
+                volume = NTFSVolume(reader, target_part.start_lba)
+                max_records = ACTIVE_SESSION["settings"].get("max_records", 100000)
+
+                ACTIVE_SESSION["all_files"] = []
+                ACTIVE_SESSION["file_map"] = {}
+                ACTIVE_SESSION["stats"] = {
+                    "files_found": 0, "good_files": 0, "partial_files": 0,
+                    "failed_files": 0, "total_bytes": 0, "percent_complete": 0.0,
+                }
+                ACTIVE_SESSION["volume"] = volume
+                ACTIVE_SESSION["reader"] = reader
+                ACTIVE_SESSION["partition"] = target_part
+
+                def progress_cb(count):
+                    if ACTIVE_SESSION["is_running"]:
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["stats"]["percent_complete"] = min(100.0, round((count / max_records) * 100, 1))
+
+                files = read_all_mft_records(volume, max_records=max_records, progress_callback=progress_cb)
+
+                user_files = {
+                    rec_id: f for rec_id, f in files.items()
+                    if not f.is_directory and f.name and (ACTIVE_SESSION["settings"].get("include_system", False) or not f.name.startswith("$"))
+                }
+
+                for rec_id, f in user_files.items():
+                    ACTIVE_SESSION["file_map"][rec_id] = f
+                    ACTIVE_SESSION["all_files"].append({
+                        "id": rec_id,
+                        "name": f.name,
+                        "is_folder": f.is_directory,
+                        "status": "Pending",
+                        "size": format_bytes_human(f.file_size),
+                        "raw_size": f.file_size,
+                        "modified": "",
+                        "path": f.full_path or f"\\{f.name}",
+                        "type": "Directory" if f.is_directory else "File",
+                        "record_number": rec_id,
+                        "data_runs": len(f.data_runs),
+                        "is_resident": f.is_resident,
+                    })
+
+                ACTIVE_SESSION["stats"]["files_found"] = len(ACTIVE_SESSION["all_files"])
+                ACTIVE_SESSION["stats"]["good_files"] = len(ACTIVE_SESSION["all_files"])
+                ACTIVE_SESSION["stats"]["total_bytes"] = sum(f.file_size for f in user_files.values())
+                ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
+
+                reader.close()
+                self._send_json({"success": True, "files_found": len(ACTIVE_SESSION["all_files"])})
+
+            except Exception as e:
+                self._send_json({"success": False, "error": str(e)})
+
+        elif path == "/api/start_recovery":
+            # Full recovery execution with all phases
+            with SESSION_LOCK:
+                drive = data.get("drive", ACTIVE_SESSION["selected_drive_path"])
+                partition_idx = data.get("partition", 1) - 1
+                dest = data.get("dest", ACTIVE_SESSION["dest_dir"])
+                timeout = int(data.get("timeout", ACTIVE_SESSION["timeout_ms"]))
+                include_sys = data.get("include_system", ACTIVE_SESSION["settings"].get("include_system", False))
+                reverse = data.get("reverse", ACTIVE_SESSION["settings"].get("reverse", False))
+                multi_pass = data.get("multi_pass", True)
+                carve = data.get("carve", True)
+                target_exts = data.get("extensions", None)
+
+                device_path = drive
+                if not os.path.exists(device_path) and not device_path.startswith(r"\\.\\"):
+                    device_path = rf"\\.\PhysicalDrive{drive}" if drive.isdigit() else drive
+
+                ACTIVE_SESSION["dest_dir"] = os.path.abspath(dest)
+                ACTIVE_SESSION["timeout_ms"] = timeout
+                os.makedirs(ACTIVE_SESSION["dest_dir"], exist_ok=True)
+
+                # Reset state
+                RECOVERY_WORKER["cancel_event"].clear()
+                RECOVERY_WORKER["pause_event"].clear()
+                ACTIVE_SESSION["is_running"] = True
+                ACTIVE_SESSION["is_paused"] = False
+                ACTIVE_SESSION["start_time"] = time.time()
+
+            def recovery_worker():
+                try:
+                    reader = RawDiskReader(device_path, sector_size=512, default_timeout_ms=timeout)
+                    parts = scan_partitions(reader)
+                    target_part = parts[partition_idx]
+                    volume = NTFSVolume(reader, target_part.start_lba)
+
+                    with SESSION_LOCK:
+                        ACTIVE_SESSION["engine"] = RecoveryEngine(
+                            volume=volume,
+                            dest_dir=ACTIVE_SESSION["dest_dir"],
+                            timeout_ms=timeout,
+                            include_system_files=include_sys,
+                            target_extensions=target_exts,
+                            reverse_direction=reverse,
+                        )
+                        ACTIVE_SESSION["volume"] = volume
+                        ACTIVE_SESSION["partition"] = target_part
+
+                    # Phase 1: Fast Sweep
+                    if multi_pass and not RECOVERY_WORKER["cancel_event"].is_set():
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["stats"]["percent_complete"] = 5.0
+                        scheduler = MultiPassScheduler(
+                            volume=volume,
+                            mapfile=ACTIVE_SESSION["engine"].mapfile,
+                            dest_dir=ACTIVE_SESSION["dest_dir"],
+                            timeout_ms=timeout
+                        )
+                        scheduler.run_phase1_fast_sweep(
+                            progress_callback=lambda cur, tot, msg: None
+                        )
+
+                    # Phase 2: Read MFT & Extract Files
+                    if not RECOVERY_WORKER["cancel_event"].is_set():
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["stats"]["percent_complete"] = 20.0
+                        max_records = ACTIVE_SESSION["settings"].get("max_records", 100000)
+                        files = read_all_mft_records(volume, max_records=max_records)
+
+                        user_files = {
+                            rec_id: f for rec_id, f in files.items()
+                            if not f.is_directory and f.name and (include_sys or not f.name.startswith("$"))
+                        }
+
+                        if target_exts:
+                            user_files = {
+                                rec_id: f for rec_id, f in user_files.items()
+                                if "." in f.name and f.name.split(".")[-1].lower() in target_exts
+                            }
+
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["file_map"] = user_files
+                            ACTIVE_SESSION["all_files"] = [{
+                                "id": rec_id,
+                                "name": f.name,
+                                "is_folder": f.is_directory,
+                                "status": "Pending",
+                                "size": format_bytes_human(f.file_size),
+                                "raw_size": f.file_size,
+                                "modified": "",
+                                "path": f.full_path or f"\\{f.name}",
+                                "type": "Directory" if f.is_directory else "File",
+                                "record_number": rec_id,
+                            } for rec_id, f in user_files.items()]
+                            ACTIVE_SESSION["stats"]["files_found"] = len(user_files)
+                            ACTIVE_SESSION["stats"]["total_bytes"] = sum(f.file_size for f in user_files.values())
+
+                        def on_progress(stats, current_file, outcome):
+                            if RECOVERY_WORKER["pause_event"].is_set():
+                                while RECOVERY_WORKER["pause_event"].is_set() and not RECOVERY_WORKER["cancel_event"].is_set():
+                                    time.sleep(0.1)
+                            if RECOVERY_WORKER["cancel_event"].is_set():
+                                return
+                            with SESSION_LOCK:
+                                ACTIVE_SESSION["stats"].update(stats)
+                                # Update file status in UI
+                                for f in ACTIVE_SESSION["all_files"]:
+                                    if f.get("record_number") == current_file.record_number:
+                                        f["status"] = outcome
+                                        break
+
+                        final_stats = ACTIVE_SESSION["engine"].run_recovery(user_files, progress_callback=on_progress)
+
+                    # Phase 3: Scraping
+                    if multi_pass and not RECOVERY_WORKER["cancel_event"].is_set():
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["stats"]["percent_complete"] = 85.0
+                        scheduler = MultiPassScheduler(
+                            volume=volume,
+                            mapfile=ACTIVE_SESSION["engine"].mapfile,
+                            dest_dir=ACTIVE_SESSION["dest_dir"],
+                            timeout_ms=timeout
+                        )
+                        scheduler.run_phase3_scraping(
+                            progress_callback=lambda cur, tot, msg: None
+                        )
+
+                    # Phase 4: Carving
+                    if carve and not RECOVERY_WORKER["cancel_event"].is_set():
+                        with SESSION_LOCK:
+                            ACTIVE_SESSION["stats"]["percent_complete"] = 95.0
+                        carved = ACTIVE_SESSION["engine"].carve_orphan_files(
+                            start_lba=target_part.start_lba,
+                            sector_count=min(volume.total_sectors, 500000),
+                            progress_callback=lambda cur, tot, cnt: None
+                        )
+                        # Add carved files to list
+                        for c in carved:
+                            with SESSION_LOCK:
+                                ACTIVE_SESSION["all_files"].append({
+                                    "id": len(ACTIVE_SESSION["all_files"]),
+                                    "name": os.path.basename(c.output_path),
+                                    "is_folder": False,
+                                    "status": c.status,
+                                    "size": format_bytes_human(c.size),
+                                    "raw_size": c.size,
+                                    "modified": time.strftime("%m/%d/%Y %I:%M %p"),
+                                    "path": "\\carved",
+                                    "type": c.file_type,
+                                    "record_number": -1,
+                                })
+                                if c.status == "RECOVERED":
+                                    ACTIVE_SESSION["stats"]["good_files"] += 1
+                                else:
+                                    ACTIVE_SESSION["stats"]["partial_files"] += 1
+
+                    with SESSION_LOCK:
+                        ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
+                        ACTIVE_SESSION["is_running"] = False
+
+                except Exception as e:
+                    with SESSION_LOCK:
+                        ACTIVE_SESSION["is_running"] = False
+                    print(f"Recovery error: {e}")
+
+            RECOVERY_WORKER["thread"] = threading.Thread(target=recovery_worker, daemon=True)
+            RECOVERY_WORKER["thread"].start()
+
+            self._send_json({"success": True, "message": "Recovery started"})
+
+        elif path == "/api/cancel":
+            RECOVERY_WORKER["cancel_event"].set()
+            RECOVERY_WORKER["pause_event"].clear()
+            with SESSION_LOCK:
+                if ACTIVE_SESSION["engine"]:
+                    ACTIVE_SESSION["engine"].cancel()
+                ACTIVE_SESSION["is_running"] = False
+                ACTIVE_SESSION["is_paused"] = False
+            self._send_json({"success": True, "message": "Recovery cancelled"})
+
+        elif path == "/api/phase1":
+            with SESSION_LOCK:
+                if not ACTIVE_SESSION["volume"] or not ACTIVE_SESSION["engine"]:
+                    self._send_json({"success": False, "error": "No active volume/engine"})
+                    return
+                volume = ACTIVE_SESSION["volume"]
+                engine = ACTIVE_SESSION["engine"]
+                timeout = ACTIVE_SESSION["timeout_ms"]
+                dest_dir = ACTIVE_SESSION["dest_dir"]
+            scheduler = MultiPassScheduler(
+                volume=volume,
+                mapfile=engine.mapfile,
+                dest_dir=dest_dir,
+                timeout_ms=timeout
+            )
+            scheduler.run_phase1_fast_sweep(
+                progress_callback=lambda cur, tot, msg: None
+            )
+            self._send_json({"success": True, "message": "Phase 1 complete"})
+
+        elif path == "/api/phase3":
+            with SESSION_LOCK:
+                if not ACTIVE_SESSION["volume"] or not ACTIVE_SESSION["engine"]:
+                    self._send_json({"success": False, "error": "No active volume/engine"})
+                    return
+                volume = ACTIVE_SESSION["volume"]
+                engine = ACTIVE_SESSION["engine"]
+                timeout = ACTIVE_SESSION["timeout_ms"]
+                dest_dir = ACTIVE_SESSION["dest_dir"]
+            scheduler = MultiPassScheduler(
+                volume=volume,
+                mapfile=engine.mapfile,
+                dest_dir=dest_dir,
+                timeout_ms=timeout
+            )
+            scheduler.run_phase3_scraping(
+                progress_callback=lambda cur, tot, msg: None
+            )
+            self._send_json({"success": True, "message": "Phase 3 complete"})
+
+        elif path == "/api/carve":
+            with SESSION_LOCK:
+                if not ACTIVE_SESSION["engine"] or not ACTIVE_SESSION["partition"]:
+                    self._send_json({"success": False, "error": "No active engine/partition"})
+                    return
+                engine = ACTIVE_SESSION["engine"]
+                partition = ACTIVE_SESSION["partition"]
+                volume = ACTIVE_SESSION["volume"]
+            carved = engine.carve_orphan_files(
+                start_lba=partition.start_lba,
+                sector_count=min(volume.total_sectors, 500000),
+                progress_callback=lambda cur, tot, cnt: None
+            )
+            with SESSION_LOCK:
+                for c in carved:
+                    ACTIVE_SESSION["all_files"].append({
+                        "id": len(ACTIVE_SESSION["all_files"]),
+                        "name": os.path.basename(c.output_path),
+                        "is_folder": False,
+                        "status": c.status,
+                        "size": format_bytes_human(c.size),
+                        "raw_size": c.size,
+                        "modified": time.strftime("%m/%d/%Y %I:%M %p"),
+                        "path": "\\carved",
+                        "type": c.file_type,
+                        "record_number": -1,
+                    })
+            self._send_json({"success": True, "carved": len(carved)})
+
+        elif path == "/api/smart":
+            with SESSION_LOCK:
+                drive = data.get("drive", ACTIVE_SESSION["selected_drive_path"])
+                device_path = drive
+                if not os.path.exists(device_path) and not device_path.startswith(r"\\.\\"):
+                    device_path = rf"\\.\PhysicalDrive{drive}" if drive.isdigit() else drive
+            try:
+                reader = RawDiskReader(device_path, sector_size=512, default_timeout_ms=500)
+                handle = getattr(reader, "handle", None)
+            except Exception:
+                handle = None
+            try:
+                from smart_monitor import query_smart_health
+                smart = query_smart_health(device_path, handle)
+            except Exception as e:
+                smart = None
+                print(f"SMART error: {e}")
+            if handle:
+                try:
+                    reader.close()
+                except:
+                    pass
+            if smart:
+                self._send_json({"success": True, "smart": smart.to_dict()})
+            else:
+                self._send_json({"success": False, "error": "SMART not available"})
 
         else:
             self.send_response(404)
@@ -879,7 +1427,8 @@ def run_web_studio(port: int = 8080, open_browser: bool = False):
     actual_port = port
     for p in range(port, port + 10):
         try:
-            server = ReusableHTTPServer(("0.0.0.0", p), UnifiedStudioHandler)
+            # Security: bind to localhost only
+            server = ReusableHTTPServer(("127.0.0.1", p), UnifiedStudioHandler)
             actual_port = p
             break
         except OSError:
