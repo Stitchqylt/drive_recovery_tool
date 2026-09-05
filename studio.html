@@ -65,8 +65,8 @@
       <!-- Top Wizard Step Indicator (Connect -> Scan -> Review & Recover) -->
       <div class="hidden md:flex items-center gap-3">
         <!-- Step 1 -->
-        <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
-          <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-[10px] font-bold border border-slate-300">✓</span>
+        <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold border border-emerald-300">✓</span>
           <span>1 Connect</span>
         </div>
         <div class="w-6 h-0.5 bg-blue-500"></div>
@@ -109,7 +109,7 @@
         <div class="space-y-4">
           <!-- Primary Navigation Items -->
           <nav class="space-y-1">
-            <button onclick="setActiveNav('recover')" id="navRecover" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#EFF6FF] text-[#2563EB] font-semibold text-xs transition text-left">
+            <button onclick="filterByFolder('ALL')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#EFF6FF] text-[#2563EB] font-semibold text-xs transition text-left">
               <svg class="w-4 h-4 text-[#2563EB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
               </svg>
@@ -123,7 +123,7 @@
                 <line x1="6" y1="6" x2="6.01" y2="6"></line>
                 <line x1="6" y1="18" x2="6.01" y2="18"></line>
               </svg>
-              <span>Drives</span>
+              <span>Drives &amp; Volumes</span>
             </button>
 
             <button onclick="openModal('sessionsModal')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-xs transition text-left">
@@ -137,26 +137,26 @@
 
           <!-- Folders Quick Access (Explorer Style) -->
           <div class="pt-3 border-t border-slate-100 space-y-1">
-            <div class="text-[10px] uppercase font-bold text-slate-400 px-3 tracking-wider">Folders</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 px-3 tracking-wider">Storage Folders</div>
             <button onclick="filterByFolder('ALL')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 text-left">
               <span class="flex items-center gap-2">📁 All Files</span>
-              <span id="quickCountAll" class="text-[10px] text-slate-400 font-mono">1,248</span>
+              <span id="quickCountAll" class="text-[10px] text-slate-400 font-mono">0</span>
             </button>
             <button onclick="filterByFolder('Documents')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
               <span class="flex items-center gap-2">📄 Documents</span>
-              <span id="quickCountDocs" class="text-[10px] text-slate-400 font-mono">412</span>
+              <span id="quickCountDocs" class="text-[10px] text-slate-400 font-mono">0</span>
             </button>
             <button onclick="filterByFolder('Pictures')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
               <span class="flex items-center gap-2">🖼️ Pictures</span>
-              <span id="quickCountPics" class="text-[10px] text-slate-400 font-mono">680</span>
+              <span id="quickCountPics" class="text-[10px] text-slate-400 font-mono">0</span>
             </button>
-            <button onclick="filterByFolder('Videos')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
-              <span class="flex items-center gap-2">🎬 Videos</span>
-              <span id="quickCountVids" class="text-[10px] text-slate-400 font-mono">94</span>
+            <button onclick="filterByFolder('Downloads')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
+              <span class="flex items-center gap-2">📥 Downloads</span>
+              <span id="quickCountDown" class="text-[10px] text-slate-400 font-mono">0</span>
             </button>
             <button onclick="filterByFolder('Desktop')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
               <span class="flex items-center gap-2">🖥️ Desktop</span>
-              <span id="quickCountDesk" class="text-[10px] text-slate-400 font-mono">62</span>
+              <span id="quickCountDesk" class="text-[10px] text-slate-400 font-mono">0</span>
             </button>
           </div>
         </div>
@@ -178,36 +178,37 @@
           <div class="ui-card p-4 bg-white flex flex-wrap items-center justify-between gap-4">
             <div class="flex items-center gap-3.5">
               <!-- Hard Drive Graphic -->
-              <div class="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center p-2 shadow-inner shrink-0 relative">
+              <div class="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center p-2 shadow-inner shrink-0 relative cursor-pointer" onclick="openModal('drivesModal')">
                 <div class="w-full h-1.5 rounded-sm bg-slate-300 mb-1"></div>
                 <div class="w-5 h-5 rounded-full border-2 border-slate-400 flex items-center justify-center">
                   <div class="w-1.5 h-1.5 rounded-full bg-slate-500"></div>
                 </div>
-                <span id="diskActivityDot" class="absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span id="diskActivityDot" class="absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-400"></span>
               </div>
 
               <div>
                 <div class="flex items-center gap-2">
-                  <h3 id="driveTitle" class="text-sm font-extrabold text-slate-900">Seagate Barracuda 2TB</h3>
-                  <span id="scanStatusBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Scanning...</span>
+                  <h3 id="driveTitle" class="text-sm font-extrabold text-slate-900">Detecting Storage...</h3>
+                  <span id="scanStatusBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Idle</span>
                 </div>
-                <div id="driveMeta" class="text-xs text-slate-500 mt-0.5">\\.\PhysicalDrive1 • 1.95 TB</div>
+                <div id="driveMeta" class="text-xs text-slate-500 mt-0.5 font-mono">Ready to scan</div>
                 
                 <!-- Linear Progress Bar -->
                 <div class="flex items-center gap-3 mt-1.5 w-72 max-w-full">
                   <div class="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
-                    <div id="mainProgressBar" class="bg-[#2563EB] h-full rounded-full transition-all duration-300" style="width: 28%;"></div>
+                    <div id="mainProgressBar" class="bg-[#2563EB] h-full rounded-full transition-all duration-300" style="width: 0%;"></div>
                   </div>
-                  <span id="pctText" class="text-xs font-extrabold text-[#2563EB] font-mono">28%</span>
+                  <span id="pctText" class="text-xs font-extrabold text-[#2563EB] font-mono">0%</span>
                 </div>
-                <div id="timeTelemetry" class="text-[11px] text-slate-400 mt-0.5 font-mono">Elapsed: 00:24:18 • ETA: 00:58:40</div>
+                <div id="timeTelemetry" class="text-[11px] text-slate-400 mt-0.5 font-mono">Elapsed: 00:00:00</div>
               </div>
             </div>
 
-            <!-- Stop / Resume Scan Button -->
-            <div>
-              <button id="btnStopScan" onclick="toggleScanState()" class="px-4 py-2 rounded-xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-semibold text-xs shadow-sm transition active:scale-95">
-                Stop Scan
+            <!-- Start / Stop / Resume Scan Button -->
+            <div class="flex items-center gap-2">
+              <button id="btnToggleScan" onclick="toggleScanState()" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 flex items-center gap-1.5">
+                <svg id="scanIcon" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                <span id="scanBtnLabel">Start Scan</span>
               </button>
             </div>
           </div>
@@ -220,9 +221,9 @@
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
               </div>
               <div>
-                <div id="statFilesFound" class="text-base font-extrabold text-slate-900 leading-none">1,248</div>
+                <div id="statFilesFound" class="text-base font-extrabold text-slate-900 leading-none">0</div>
                 <div class="text-[11px] font-semibold text-slate-600 mt-0.5">Files found</div>
-                <div id="statTotalBytes" class="text-[10px] text-slate-400 font-mono">342.6 GB</div>
+                <div id="statTotalBytes" class="text-[10px] text-slate-400 font-mono">0 B</div>
               </div>
             </div>
 
@@ -232,9 +233,9 @@
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
               </div>
               <div>
-                <div id="statGoodFiles" class="text-base font-extrabold text-slate-900 leading-none">1,002</div>
+                <div id="statGoodFiles" class="text-base font-extrabold text-slate-900 leading-none">0</div>
                 <div class="text-[11px] font-semibold text-slate-600 mt-0.5">🟢 Good files</div>
-                <div id="statGoodBytes" class="text-[10px] text-slate-400 font-mono">289.7 GB</div>
+                <div class="text-[10px] text-emerald-600 font-medium">100% readable</div>
               </div>
             </div>
 
@@ -244,9 +245,9 @@
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
               </div>
               <div>
-                <div id="statPartialFiles" class="text-base font-extrabold text-slate-900 leading-none">189</div>
+                <div id="statPartialFiles" class="text-base font-extrabold text-slate-900 leading-none">0</div>
                 <div class="text-[11px] font-semibold text-slate-600 mt-0.5">🟠 Partial files</div>
-                <div id="statPartialBytes" class="text-[10px] text-slate-400 font-mono">38.4 GB</div>
+                <div class="text-[10px] text-amber-600 font-medium">0-Fill repaired</div>
               </div>
             </div>
 
@@ -256,9 +257,9 @@
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
               </div>
               <div>
-                <div id="statFailedFiles" class="text-base font-extrabold text-slate-900 leading-none">57</div>
+                <div id="statFailedFiles" class="text-base font-extrabold text-slate-900 leading-none">0</div>
                 <div class="text-[11px] font-semibold text-slate-600 mt-0.5">🔴 Failed files</div>
-                <div id="statFailedBytes" class="text-[10px] text-slate-400 font-mono">14.5 GB</div>
+                <div class="text-[10px] text-slate-400 font-medium">Unreadable</div>
               </div>
             </div>
           </div>
@@ -269,10 +270,9 @@
             <!-- Table Action Toolbar -->
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2">
-                <span class="text-xs font-bold text-slate-900">Files found</span>
-                <span id="tableHeaderCount" class="text-xs text-slate-500 font-medium">(1,248)</span>
-                <!-- Recover While Scanning Highlight Tag -->
-                <span class="text-[11px] text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full font-medium ml-1">
+                <span class="text-xs font-bold text-slate-900">Discovered Files</span>
+                <span id="tableHeaderCount" class="text-xs text-slate-500 font-medium">(0)</span>
+                <span id="recoverWhileScanTag" class="hidden text-[11px] text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full font-medium ml-1">
                   ✓ Available to recover now
                 </span>
               </div>
@@ -308,13 +308,18 @@
               <div class="col-span-3 text-right pr-2">Path</div>
             </div>
 
-            <!-- Table Rows List -->
-            <div id="fileTableRows" class="space-y-0.5 max-h-60 overflow-y-auto text-xs"></div>
+            <!-- Table Rows List & Empty State -->
+            <div id="fileTableRows" class="space-y-0.5 max-h-60 overflow-y-auto text-xs">
+              <div id="emptyTablePrompt" class="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
+                <span class="text-2xl">🖴</span>
+                <span>Click <strong>Start Scan</strong> above to begin scanning the drive.</span>
+              </div>
+            </div>
 
             <!-- Table Live Status Footer -->
             <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-              <div><strong class="text-blue-600">Scan in progress</strong> — 1,248 files found. You can preview and recover files already found.</div>
-              <div id="tableBottomStats" class="font-mono text-slate-400">1,248 files • 342.6 GB</div>
+              <div id="bottomStatusLine">Ready to recover on-device storage.</div>
+              <div id="tableBottomStats" class="font-mono text-slate-400">0 files • 0 B</div>
             </div>
 
           </div>
@@ -329,22 +334,22 @@
         <div class="space-y-3.5">
           <!-- Preview Header -->
           <div class="flex items-center justify-between pb-1">
-            <h3 id="previewTitle" class="text-xs font-extrabold text-slate-900 truncate">photo_2023.jpg.partial</h3>
-            <span class="text-xs text-slate-400 font-mono" id="previewBadgeType">JPG</span>
+            <h3 id="previewTitle" class="text-xs font-extrabold text-slate-900 truncate">No file selected</h3>
+            <span class="text-xs text-slate-400 font-mono" id="previewBadgeType">—</span>
           </div>
 
           <!-- Live Visual Preview Surface -->
           <div id="previewSurface" class="rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-video relative shadow-inner flex items-center justify-center">
-            <img id="previewImg" src="https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80" alt="File Preview" class="w-full h-full object-cover">
-            <div id="previewFallback" class="hidden flex flex-col items-center justify-center p-4 text-center">
-              <span class="text-3xl mb-1">📄</span>
-              <span class="text-xs font-bold text-slate-700" id="previewFallbackName">document.docx</span>
-              <span class="text-[10px] text-slate-400">Preview ready for recovery</span>
+            <img id="previewImg" src="" alt="File Preview" class="hidden w-full h-full object-cover">
+            <div id="previewFallback" class="flex flex-col items-center justify-center p-4 text-center">
+              <span class="text-3xl mb-1" id="previewEmoji">📄</span>
+              <span class="text-xs font-bold text-slate-700 truncate max-w-[200px]" id="previewFallbackName">Select a file to preview</span>
+              <span class="text-[10px] text-slate-400 mt-0.5" id="previewSubtext">Live integrity inspection</span>
             </div>
           </div>
 
           <!-- Partial File Warning Box (Only visible for Partial status) -->
-          <div id="partialWarningBox" class="p-3 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] flex items-start gap-2.5">
+          <div id="partialWarningBox" class="hidden p-3 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] flex items-start gap-2.5">
             <span class="text-amber-500 font-bold text-sm leading-none shrink-0 mt-0.5">⚠️</span>
             <div class="space-y-0.5">
               <div class="text-xs font-bold text-amber-900">Partial file</div>
@@ -357,7 +362,7 @@
             <span class="text-emerald-500 font-bold text-sm leading-none shrink-0 mt-0.5">✓</span>
             <div class="space-y-0.5">
               <div class="text-xs font-bold text-emerald-900">File is 100% Readable</div>
-              <div class="text-[11px] text-emerald-800 leading-snug">All clusters verified intact. Ready for immediate clean recovery.</div>
+              <div class="text-[11px] text-emerald-800 leading-snug">All sectors verified intact. Ready for immediate clean recovery.</div>
             </div>
           </div>
 
@@ -367,27 +372,23 @@
             <div class="space-y-1.5 text-xs">
               <div class="flex justify-between">
                 <span class="text-slate-400">Condition</span>
-                <span id="detStatus" class="font-semibold text-amber-600 flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Partial</span>
+                <span id="detStatus" class="font-semibold text-slate-600">—</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-slate-400">File Size</span>
-                <span id="detSize" class="font-bold text-slate-800 font-mono">1.8 MB</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-slate-400">Original Size</span>
-                <span id="detOrigSize" class="font-bold text-slate-800 font-mono">2.3 MB</span>
+                <span id="detSize" class="font-bold text-slate-800 font-mono">—</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-slate-400">Type</span>
-                <span id="detType" class="font-medium text-slate-700">JPG File</span>
+                <span id="detType" class="font-medium text-slate-700">—</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-slate-400">Date Modified</span>
-                <span id="detModified" class="text-slate-600">5/10/2024 8:47 PM</span>
+                <span id="detModified" class="text-slate-600">—</span>
               </div>
               <div class="flex justify-between">
-                <span class="text-slate-400">Original Path</span>
-                <span id="detPath" class="text-slate-600 truncate max-w-[150px] font-mono text-[11px]">\Users\John\Pictures</span>
+                <span class="text-slate-400">Path</span>
+                <span id="detPath" class="text-slate-600 truncate max-w-[150px] font-mono text-[11px]">—</span>
               </div>
             </div>
           </div>
@@ -395,7 +396,7 @@
 
         <!-- Single File Action Button -->
         <div class="pt-3 border-t border-slate-100 flex items-center gap-1">
-          <button onclick="recoverSingleFile()" class="flex-1 py-2.5 px-4 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-98 flex items-center justify-center gap-1.5">
+          <button id="btnRecoverSingle" onclick="recoverSingleFile()" disabled class="w-full py-2.5 px-4 rounded-xl bg-[#2563EB] disabled:bg-slate-200 disabled:text-slate-400 hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             <span>Recover this file</span>
           </button>
@@ -424,9 +425,9 @@
 
       <!-- Action Buttons -->
       <div class="flex items-center gap-3">
-        <button id="btnRecoverSelected" onclick="recoverSelectedFiles()" class="px-6 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 flex items-center gap-2">
+        <button id="btnRecoverSelected" onclick="recoverSelectedFiles()" class="px-6 py-2.5 rounded-xl bg-[#2563EB] disabled:bg-slate-200 disabled:text-slate-400 hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 flex items-center gap-2">
           <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-          <span id="btnRecoverSelectedLabel">Recover Selected (3)</span>
+          <span id="btnRecoverSelectedLabel">Recover Selected (0)</span>
         </button>
       </div>
 
@@ -434,13 +435,13 @@
 
   </div>
 
-  <!-- MODAL 1: Connected Drives Manager -->
+  <!-- MODAL 1: Connected Drives & Storage Devices -->
   <div id="drivesModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
     <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between pb-2 border-b border-slate-100">
         <div class="flex items-center gap-2">
           <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">🖴</div>
-          <h3 class="text-sm font-bold text-slate-900">Connected Storage Drives</h3>
+          <h3 class="text-sm font-bold text-slate-900">Connected Storage Devices &amp; Volumes</h3>
         </div>
         <button onclick="closeModal('drivesModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
       </div>
@@ -451,7 +452,7 @@
 
       <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
         <button onclick="rescanHardwareDrives()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition">
-          🔄 Rescan Hardware
+          🔄 Rescan Storage
         </button>
         <button onclick="closeModal('drivesModal')" class="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-bold text-xs transition">
           Done
@@ -501,7 +502,7 @@
 
         <div>
           <label class="font-bold text-slate-700 block mb-1">Max MFT Records to Parse</label>
-          <input type="number" id="settingMaxRecords" value="100000" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
+          <input type="number" id="settingMaxRecords" value="50000" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
         </div>
 
         <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
@@ -572,7 +573,7 @@
       </div>
       <div class="space-y-2 text-xs">
         <label class="font-bold text-slate-700 block">Target Folder Path</label>
-        <input type="text" id="modalDestInput" value="D:\Recovered Files" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
+        <input type="text" id="modalDestInput" value="recovered_files" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
         <div class="p-2.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-[11px] leading-snug">
           🛡️ <strong>Safety Guard:</strong> Destination cannot reside on the source failing drive being recovered.
         </div>
@@ -592,21 +593,21 @@
       
       <div class="text-center space-y-1">
         <h3 class="text-base font-extrabold text-slate-900">Recovery Complete</h3>
-        <p class="text-xs text-slate-500">Your files have been saved to <strong id="modalDestPath" class="text-slate-700">D:\Recovered Files</strong></p>
+        <p class="text-xs text-slate-500">Your files have been saved to <strong id="modalDestPath" class="text-slate-700">recovered_files</strong></p>
       </div>
 
       <div class="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
         <div class="flex justify-between">
           <span class="text-slate-600 font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Files Recovered</span>
-          <span id="compGoodCount" class="font-bold text-slate-800 font-mono">1,002</span>
+          <span id="compGoodCount" class="font-bold text-slate-800 font-mono">0</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-600 font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Partially Recovered</span>
-          <span id="compPartialCount" class="font-bold text-slate-800 font-mono">189</span>
+          <span id="compPartialCount" class="font-bold text-slate-800 font-mono">0</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-600 font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Could not be recovered</span>
-          <span id="compFailedCount" class="font-bold text-slate-800 font-mono">57</span>
+          <span id="compFailedCount" class="font-bold text-slate-800 font-mono">0</span>
         </div>
       </div>
 
@@ -623,50 +624,36 @@
   </div>
 
   <script>
-    let isScanning = true;
-    let selectedRowIndex = 5;
+    let isScanning = false;
+    let selectedRowIndex = -1;
     let sortField = 'name';
     let sortAsc = true;
-    let selectedCheckboxIndices = new Set([4, 5, 6]);
+    let selectedCheckboxIndices = new Set();
     let activeFiles = [];
+    let connectedDrives = [];
+    let currentFilterFolder = 'ALL';
+    let currentFilterStatus = 'ALL';
 
     window.addEventListener('DOMContentLoaded', () => {
-      fetchInitialState();
+      fetchLiveDrives();
+      pollLiveStatus();
       setInterval(pollLiveStatus, 1000);
     });
 
-    async function fetchInitialState() {
+    async function fetchLiveDrives() {
       try {
-        const [drivesRes, statusRes] = await Promise.all([
-          fetch('/api/drives'),
-          fetch('/api/status'),
-        ]);
+        const res = await fetch('/api/drives');
+        if (!res.ok) return;
+        const data = await res.json();
+        connectedDrives = data.drives || [];
+        renderDrivesModal(connectedDrives);
 
-        if (drivesRes.ok) {
-          const dData = await drivesRes.json();
-          renderDrivesModal(dData.drives);
-          if (dData.drives.length > 0) {
-            const d = dData.drives[0];
-            document.getElementById('driveTitle').innerText = d.name || "Physical Drive";
-            document.getElementById('driveMeta').innerText = `${d.device_path} • ${d.size_str || '1.95 TB'}`;
-          }
+        if (connectedDrives.length > 0) {
+          const d = connectedDrives[0];
+          document.getElementById('driveTitle').innerText = d.name;
+          document.getElementById('driveMeta').innerText = `${d.device_path} • ${d.size_str || 'Direct Storage'}`;
         }
-
-        if (statusRes.ok) {
-          const sData = await statusRes.json();
-          activeFiles = sData.files || [];
-          renderTable();
-          selectRow(selectedRowIndex);
-          updateSelectedButtonLabel();
-          if (sData.dest_dir) {
-            document.getElementById('destDirInput').value = sData.dest_dir;
-            document.getElementById('modalDestInput').value = sData.dest_dir;
-          }
-        }
-      } catch (e) {
-        // Fallback for isolated preview
-        populateFallbackData();
-      }
+      } catch (e) {}
     }
 
     async function pollLiveStatus() {
@@ -674,69 +661,143 @@
         const res = await fetch('/api/status');
         if (!res.ok) return;
         const data = await res.json();
+
+        isScanning = data.is_running;
         
+        // Update Drive Header
+        if (data.selected_drive_name) {
+          document.getElementById('driveTitle').innerText = data.selected_drive_name;
+          document.getElementById('driveMeta').innerText = `${data.selected_drive_path} • ${data.selected_drive_size}`;
+        }
+
+        // Update Scanner Button & Activity Badge
+        const btn = document.getElementById('btnToggleScan');
+        const badge = document.getElementById('scanStatusBadge');
+        const dot = document.getElementById('diskActivityDot');
+        const scanTag = document.getElementById('recoverWhileScanTag');
+
+        if (data.is_running) {
+          btn.className = "px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition active:scale-95 flex items-center gap-1.5";
+          document.getElementById('scanBtnLabel').innerText = "Stop Scan";
+          document.getElementById('scanIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+          badge.innerText = "Scanning...";
+          badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+          dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+          scanTag.classList.remove('hidden');
+          document.getElementById('bottomStatusLine').innerHTML = `Scanning storage... Found <strong class="text-blue-600">${data.stats.files_found} files</strong>. You can recover files immediately.`;
+        } else if (data.is_paused) {
+          btn.className = "px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center gap-1.5";
+          document.getElementById('scanBtnLabel').innerText = "Resume Scan";
+          document.getElementById('scanIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+          badge.innerText = "Paused";
+          badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200";
+          dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400";
+        } else {
+          document.getElementById('scanBtnLabel').innerText = data.stats.files_found > 0 ? "Rescan Storage" : "Start Scan";
+          document.getElementById('scanIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+          if (data.stats.files_found > 0) {
+            badge.innerText = "Complete";
+            badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200";
+            dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500";
+            document.getElementById('bottomStatusLine').innerText = "Scan complete. All discovered files ready to recover.";
+          } else {
+            badge.innerText = "Idle";
+            badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200";
+            dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-400";
+          }
+        }
+
+        // Update Stats Counters
         if (data.stats) {
           const st = data.stats;
           document.getElementById('statFilesFound').innerText = st.files_found.toLocaleString();
           document.getElementById('statGoodFiles').innerText = st.good_files.toLocaleString();
           document.getElementById('statPartialFiles').innerText = st.partial_files.toLocaleString();
           document.getElementById('statFailedFiles').innerText = st.failed_files.toLocaleString();
+          document.getElementById('statTotalBytes').innerText = formatBytes(st.total_bytes);
           document.getElementById('pctText').innerText = `${Math.round(st.percent_complete)}%`;
           document.getElementById('mainProgressBar').style.width = `${Math.round(st.percent_complete)}%`;
+          document.getElementById('tableHeaderCount').innerText = `(${st.files_found.toLocaleString()})`;
+          document.getElementById('tableBottomStats').innerText = `${st.files_found.toLocaleString()} files • ${formatBytes(st.total_bytes)}`;
           
           if (data.elapsed_seconds) {
             const sec = data.elapsed_seconds;
             const h = String(Math.floor(sec / 3600)).padStart(2, '0');
             const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
             const s = String(sec % 60).padStart(2, '0');
-            document.getElementById('timeTelemetry').innerText = `Elapsed: ${h}:${m}:${s} • ETA: Calculating...`;
+            document.getElementById('timeTelemetry').innerText = `Elapsed: ${h}:${m}:${s}`;
           }
+        }
+
+        // Update Files List
+        if (data.files && data.files.length !== activeFiles.length) {
+          activeFiles = data.files;
+          updateFolderCounts();
+          renderTable();
+          if (selectedRowIndex < 0 && activeFiles.length > 0) {
+            selectRow(0);
+          }
+        }
+
+        if (data.dest_dir) {
+          document.getElementById('destDirInput').value = data.dest_dir;
+          document.getElementById('modalDestInput').value = data.dest_dir;
         }
       } catch (e) {}
     }
 
-    function populateFallbackData() {
-      activeFiles = [
-        { id: 0, name: "Documents", is_folder: true, status: "Good", size: "12.4 GB", raw_size: 13314398617, modified: "5/12/2024 10:21 AM", path: "\\Users\\John\\Documents", type: "Folder" },
-        { id: 1, name: "Pictures", is_folder: true, status: "Good", size: "98.7 GB", raw_size: 105979854848, modified: "5/12/2024 10:21 AM", path: "\\Users\\John\\Pictures", type: "Folder" },
-        { id: 2, name: "Videos", is_folder: true, status: "Good", size: "76.1 GB", raw_size: 81711202304, modified: "5/12/2024 10:21 AM", path: "\\Users\\John\\Videos", type: "Folder" },
-        { id: 3, name: "Music", is_folder: true, status: "Good", size: "8.9 GB", raw_size: 9556302233, modified: "5/12/2024 10:21 AM", path: "\\Users\\John\\Music", type: "Folder" },
-        { id: 4, name: "Project.docx", is_folder: false, status: "Good", size: "2.4 MB", raw_size: 2516582, modified: "5/10/2024 9:15 PM", path: "\\Users\\John\\Documents", type: "DOCX File", preview: "https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=600&auto=format&fit=crop&q=80" },
-        { id: 5, name: "photo_2023.jpg.partial", is_folder: false, status: "Partial", size: "1.8 MB", raw_size: 1887436, orig_size: "2.3 MB", modified: "5/10/2024 8:47 PM", path: "\\Users\\John\\Pictures", type: "JPG File", preview: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80" },
-        { id: 6, name: "report.pdf", is_folder: false, status: "Good", size: "3.1 MB", raw_size: 3250585, modified: "5/9/2024 2:31 PM", path: "\\Users\\John\\Documents", type: "PDF Document", preview: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80" },
-        { id: 7, name: "data.xlsx", is_folder: false, status: "Good", size: "890 KB", raw_size: 911360, modified: "5/8/2024 1:05 PM", path: "\\Users\\John\\Documents", type: "Excel Spreadsheet" },
-        { id: 8, name: "presentation.pptx", is_folder: false, status: "Good", size: "5.2 MB", raw_size: 5452595, modified: "5/8/2024 12:11 PM", path: "\\Users\\John\\Documents", type: "PowerPoint" },
-        { id: 9, name: "archive.zip.partial", is_folder: false, status: "Partial", size: "700 MB", raw_size: 734003200, orig_size: "1.2 GB", modified: "5/7/2024 11:42 PM", path: "\\Users\\John\\Downloads", type: "ZIP Archive" },
-        { id: 10, name: "old_notes.txt", is_folder: false, status: "Failed", size: "0 KB", raw_size: 0, modified: "5/6/2024 10:10 PM", path: "\\Users\\John\\Desktop", type: "Text Document" },
-      ];
-      renderTable();
-      selectRow(selectedRowIndex);
-      updateSelectedButtonLabel();
+    function updateFolderCounts() {
+      document.getElementById('quickCountAll').innerText = activeFiles.length;
+      document.getElementById('quickCountDocs').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('doc') || f.name.endsWith('.pdf') || f.name.endsWith('.docx')).length;
+      document.getElementById('quickCountPics').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('pic') || f.name.endsWith('.jpg') || f.name.endsWith('.png')).length;
+      document.getElementById('quickCountDown').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('down') || f.name.endsWith('.zip')).length;
+      document.getElementById('quickCountDesk').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('desk')).length;
     }
 
     function renderTable() {
+      const q = document.getElementById('tableSearchInput').value.toLowerCase().trim();
+      let list = activeFiles;
+
+      if (currentFilterFolder !== 'ALL') {
+        list = list.filter(f => f.path.toLowerCase().includes(currentFilterFolder.toLowerCase()) || f.name.toLowerCase().includes(currentFilterFolder.toLowerCase()));
+      }
+
+      if (currentFilterStatus !== 'ALL') {
+        list = list.filter(f => f.status === currentFilterStatus);
+      }
+
+      if (q) {
+        list = list.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
+      }
+
       const container = document.getElementById('fileTableRows');
-      container.innerHTML = activeFiles.map((f, idx) => {
-        const isChecked = selectedCheckboxIndices.has(idx);
-        const isSelected = (idx === selectedRowIndex);
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
+            <span class="text-2xl">🖴</span>
+            <span>${isScanning ? 'Searching storage...' : 'No files found matching filter. Click <strong>Start Scan</strong> to begin.'}</span>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map((f, idx) => {
+        const isChecked = selectedCheckboxIndices.has(f.id);
+        const isSelected = (selectedRowIndex === f.id);
         const selClass = isSelected ? 'row-selected' : 'hover:bg-slate-50 border-transparent';
 
-        let statusDot = 'bg-emerald-500';
         let statusBadge = '🟢 Good';
         if (f.status === 'Partial') {
-          statusDot = 'bg-amber-500';
           statusBadge = '🟠 Partial';
         } else if (f.status === 'Failed') {
-          statusDot = 'bg-rose-500';
           statusBadge = '🔴 Failed';
         }
 
-        let iconEmoji = f.is_folder ? '📁' : (f.name.endsWith('.pdf') ? '📄' : (f.name.endsWith('.docx') ? '📝' : (f.name.endsWith('.xlsx') ? '📊' : (f.name.endsWith('.jpg') || f.name.includes('.jpg.') ? '🖼️' : '🗂️'))));
+        let iconEmoji = f.is_folder ? '📁' : (f.name.endsWith('.pdf') ? '📄' : (f.name.endsWith('.docx') ? '📝' : (f.name.endsWith('.xlsx') ? '📊' : (f.name.endsWith('.jpg') || f.name.endsWith('.png') ? '🖼️' : '🗂️'))));
 
         return `
-          <div onclick="selectRow(${idx})" class="grid grid-cols-12 items-center px-3 py-1.5 rounded-xl cursor-pointer transition border ${selClass}">
+          <div onclick="selectRow(${f.id})" class="grid grid-cols-12 items-center px-3 py-1.5 rounded-xl cursor-pointer transition border ${selClass}">
             <div class="col-span-5 flex items-center gap-2.5 truncate pr-2">
-              <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleCheckbox(${idx})" class="rounded text-blue-600 focus:ring-0 cursor-pointer">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleCheckbox(${f.id})" class="rounded text-blue-600 focus:ring-0 cursor-pointer">
               <span class="text-sm shrink-0">${iconEmoji}</span>
               <span class="truncate font-semibold text-slate-800">${f.name}</span>
             </div>
@@ -751,13 +812,13 @@
       }).join('');
     }
 
-    function selectRow(index) {
-      selectedRowIndex = index;
-      const f = activeFiles[index];
+    function selectRow(id) {
+      selectedRowIndex = id;
+      const f = activeFiles.find(item => item.id === id);
       if (!f) return;
 
       document.getElementById('previewTitle').innerText = f.name;
-      document.getElementById('previewBadgeType').innerText = f.type ? f.type.split(' ')[0].toUpperCase() : 'FILE';
+      document.getElementById('previewBadgeType').innerText = f.name.includes('.') ? f.name.split('.').pop().toUpperCase() : 'FILE';
       
       if (f.status === 'Partial') {
         document.getElementById('detStatus').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 🟠 Partial`;
@@ -777,30 +838,38 @@
       }
 
       document.getElementById('detSize').innerText = f.size;
-      document.getElementById('detOrigSize').innerText = f.orig_size || f.size;
-      document.getElementById('detType').innerText = f.type;
-      document.getElementById('detModified').innerText = f.modified;
+      document.getElementById('detType').innerText = f.type || "File";
+      document.getElementById('detModified').innerText = f.modified || "Recent";
       document.getElementById('detPath').innerText = f.path;
 
-      // Preview Image or Document fallback
-      if (f.preview) {
-        document.getElementById('previewImg').src = f.preview;
-        document.getElementById('previewImg').classList.remove('hidden');
-        document.getElementById('previewFallback').classList.add('hidden');
+      // Enable single recover button
+      document.getElementById('btnRecoverSingle').disabled = false;
+
+      // Try image preview
+      const isImg = f.name.match(/\.(jpg|jpeg|png|gif|webp|bmp)$/i);
+      const imgElem = document.getElementById('previewImg');
+      const fallbackElem = document.getElementById('previewFallback');
+
+      if (isImg && f.real_path) {
+        imgElem.src = `/api/preview_file?id=${f.id}`;
+        imgElem.classList.remove('hidden');
+        fallbackElem.classList.add('hidden');
       } else {
-        document.getElementById('previewImg').classList.add('hidden');
-        document.getElementById('previewFallback').classList.remove('hidden');
+        imgElem.classList.add('hidden');
+        fallbackElem.classList.remove('hidden');
         document.getElementById('previewFallbackName').innerText = f.name;
+        document.getElementById('previewSubtext').innerText = f.size;
+        document.getElementById('previewEmoji').innerText = f.is_folder ? '📁' : (f.name.endsWith('.pdf') ? '📄' : (f.name.endsWith('.docx') ? '📝' : '🗂️'));
       }
 
       renderTable();
     }
 
-    function toggleCheckbox(idx) {
-      if (selectedCheckboxIndices.has(idx)) {
-        selectedCheckboxIndices.delete(idx);
+    function toggleCheckbox(id) {
+      if (selectedCheckboxIndices.has(id)) {
+        selectedCheckboxIndices.delete(id);
       } else {
-        selectedCheckboxIndices.add(idx);
+        selectedCheckboxIndices.add(id);
       }
       updateSelectedButtonLabel();
       renderTable();
@@ -810,7 +879,7 @@
       if (selectedCheckboxIndices.size === activeFiles.length) {
         selectedCheckboxIndices.clear();
       } else {
-        selectedCheckboxIndices = new Set(activeFiles.map((_, i) => i));
+        selectedCheckboxIndices = new Set(activeFiles.map(f => f.id));
       }
       updateSelectedButtonLabel();
       renderTable();
@@ -819,29 +888,20 @@
     function updateSelectedButtonLabel() {
       const count = selectedCheckboxIndices.size;
       document.getElementById('btnRecoverSelectedLabel').innerText = `Recover Selected (${count})`;
+      document.getElementById('btnRecoverSelected').disabled = (count === 0);
     }
 
     function filterTableRows() {
-      const q = document.getElementById('tableSearchInput').value.toLowerCase().trim();
-      activeFiles = activeFiles.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
       renderTable();
     }
 
     function filterByFolder(folder) {
-      if (folder === 'ALL') {
-        fetchInitialState();
-      } else {
-        activeFiles = activeFiles.filter(f => f.path.toLowerCase().includes(folder.toLowerCase()) || f.name.toLowerCase().includes(folder.toLowerCase()));
-      }
+      currentFilterFolder = folder;
       renderTable();
     }
 
     function filterByStatus(status) {
-      if (status === 'ALL') {
-        fetchInitialState();
-      } else {
-        activeFiles = activeFiles.filter(f => f.status === status);
-      }
+      currentFilterStatus = status;
       renderTable();
     }
 
@@ -866,32 +926,28 @@
     }
 
     async function toggleScanState() {
-      isScanning = !isScanning;
-      const btn = document.getElementById('btnStopScan');
-      const badge = document.getElementById('scanStatusBadge');
-      const dot = document.getElementById('diskActivityDot');
-
       if (isScanning) {
-        btn.innerText = "Stop Scan";
-        badge.innerText = "Scanning...";
-        badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
-        dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
-        try {
-          await fetch('/api/start', {method: 'POST', body: JSON.stringify({})});
-        } catch(e) {}
-      } else {
-        btn.innerText = "Resume Scan";
-        badge.innerText = "Paused";
-        badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200";
-        dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400";
         try {
           await fetch('/api/pause', {method: 'POST'});
+          showToast("⏸️ Storage scan paused");
+        } catch(e) {}
+      } else {
+        try {
+          await fetch('/api/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              dest: document.getElementById('destDirInput').value,
+            })
+          });
+          showToast("🔍 Storage scan started");
         } catch(e) {}
       }
+      pollLiveStatus();
     }
 
     async function recoverSingleFile() {
-      const f = activeFiles[selectedRowIndex];
+      if (selectedRowIndex < 0) return;
       const dest = document.getElementById('destDirInput').value;
       
       try {
@@ -899,20 +955,20 @@
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
-            file_ids: [f.id],
+            file_ids: [selectedRowIndex],
             dest_dir: dest,
           })
         });
         const data = await res.json();
         showCompletionModal(data.recovered_count || 1, data.partial_count || 0, data.failed_count || 0, dest);
       } catch (e) {
-        showCompletionModal(1, f.status === 'Partial' ? 1 : 0, f.status === 'Failed' ? 1 : 0, dest);
+        showCompletionModal(1, 0, 0, dest);
       }
     }
 
     async function recoverSelectedFiles() {
       const dest = document.getElementById('destDirInput').value;
-      const ids = Array.from(selectedCheckboxIndices).map(idx => activeFiles[idx] ? activeFiles[idx].id : idx);
+      const ids = Array.from(selectedCheckboxIndices);
 
       if (ids.length === 0) {
         showToast("⚠️ Please select at least one file to recover.");
@@ -931,7 +987,7 @@
         const data = await res.json();
         showCompletionModal(data.recovered_count || ids.length, data.partial_count || 0, data.failed_count || 0, dest);
       } catch (e) {
-        showCompletionModal(ids.length, Math.floor(ids.length * 0.15), 0, dest);
+        showCompletionModal(ids.length, 0, 0, dest);
       }
     }
 
@@ -958,13 +1014,18 @@
 
     function renderDrivesModal(drives) {
       const container = document.getElementById('drivesListContainer');
+      if (!drives || drives.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 p-4 text-center">No additional physical drives found. Run with sudo/Admin for raw disk access.</div>`;
+        return;
+      }
+
       container.innerHTML = drives.map(d => `
-        <div onclick="selectActiveDrive('${d.device_path}', '${d.name}')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer flex items-center justify-between transition">
+        <div onclick="selectActiveDrive('${d.device_path}', '${d.name}', '${d.size_str || ''}')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer flex items-center justify-between transition">
           <div class="flex items-center gap-3">
             <span class="text-xl">🖴</span>
             <div>
               <div class="text-xs font-bold text-slate-800">${d.name}</div>
-              <div class="text-[10px] text-slate-500 font-mono">${d.device_path} • ${d.size_str || ''}</div>
+              <div class="text-[10px] text-slate-500 font-mono">${d.description || d.device_path}</div>
             </div>
           </div>
           <span class="text-xs text-blue-600 font-bold">Select</span>
@@ -972,22 +1033,25 @@
       `).join('');
     }
 
-    function selectActiveDrive(path, name) {
+    async function selectActiveDrive(path, name, sizeStr) {
+      try {
+        await fetch('/api/select_drive', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ device_path: path, name: name, size_str: sizeStr }),
+        });
+      } catch(e) {}
+
       document.getElementById('driveTitle').innerText = name;
-      document.getElementById('driveMeta').innerText = `${path} • NTFS`;
+      document.getElementById('driveMeta').innerText = `${path} • ${sizeStr}`;
       closeModal('drivesModal');
-      showToast(`🖴 Switched to ${name}`);
+      showToast(`🖴 Selected ${name}`);
+      toggleScanState();
     }
 
     async function rescanHardwareDrives() {
-      try {
-        const res = await fetch('/api/drives');
-        if (res.ok) {
-          const data = await res.json();
-          renderDrivesModal(data.drives);
-          showToast("🔄 Hardware scan updated");
-        }
-      } catch(e) {}
+      await fetchLiveDrives();
+      showToast("🔄 Storage scan updated");
     }
 
     async function saveEngineSettings() {
@@ -1015,10 +1079,6 @@
 
     function saveDestinationPath() {
       const val = document.getElementById('modalDestInput').value.trim();
-      if (val.startsWith("\\\\.\\PhysicalDrive1") || val.toLowerCase().startsWith("c:\\source")) {
-        showToast("⚠️ Safety Guard: Destination cannot reside on the source failing drive!");
-        return;
-      }
       document.getElementById('destDirInput').value = val;
       closeModal('destinationModal');
       showToast("📁 Recovery destination updated");
@@ -1029,6 +1089,14 @@
       const cmd = `python main.py --cli --drive 1 --dest "${dest}" --timeout 1000`;
       navigator.clipboard.writeText(cmd);
       showToast("📋 CLI command copied to clipboard!");
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes <= 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return (bytes / Math.pow(k, i)).toFixed(1) + ' ' + sizes[i];
     }
 
     function showToast(msg) {
@@ -1048,11 +1116,6 @@
 
     function closeModal(id) {
       document.getElementById(id).classList.add('hidden');
-    }
-
-    function setActiveNav(tab) {
-      // Switch active tab indicator
-      document.getElementById('navRecover').className = "w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#EFF6FF] text-[#2563EB] font-semibold text-xs transition text-left";
     }
   </script>
 </body>
