@@ -39,6 +39,13 @@ SCAN_THREAD = None
 CANCEL_SCAN = threading.Event()
 PAUSE_SCAN = threading.Event()
 
+# Excluded developer and system caches that pollute real user file recovery
+EXCLUDED_DIRS = {
+    "node_modules", ".git", ".cache", "Library", ".gemini", ".npm",
+    ".nvm", ".cargo", "venv", ".venv", "__pycache__", ".vscode", ".config",
+    "AppData", "Application Support", ".rustup", "site-packages"
+}
+
 ACTIVE_SESSION = {
     "is_running": False,
     "is_paused": False,
@@ -86,7 +93,7 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
     """
     devices = []
 
-    # 1. Look for virtual disk images (.img, .raw, .dd) in the current workspace
+    # 1. Virtual disk images (.img, .raw, .dd)
     script_dir = os.path.dirname(os.path.abspath(__file__))
     img_patterns = [
         os.path.join(script_dir, "*.img"),
@@ -103,7 +110,7 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
                     "id": f"img_{bname}",
                     "device_path": os.path.abspath(img_path),
                     "name": f"Disk Image: {bname}",
-                    "description": f"Damaged NTFS Disk Image • {format_bytes_human(sz)}",
+                    "description": f"NTFS Damaged Disk Image • {format_bytes_human(sz)}",
                     "size_bytes": sz,
                     "size_str": format_bytes_human(sz),
                     "type": "Disk Image",
@@ -159,7 +166,7 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
                         "id": dev_id,
                         "device_path": f"/dev/{dev_id}",
                         "name": f"{dev_id} ({content})",
-                        "description": f"macOS Storage • {format_bytes_human(sz)}",
+                        "description": f"macOS Physical Storage • {format_bytes_human(sz)}",
                         "size_bytes": sz,
                         "size_str": format_bytes_human(sz),
                         "type": "Physical Disk",
@@ -168,9 +175,9 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
         except Exception:
             pass
 
-    # 3. User Storage & On-Device Directories (for live testing on any OS)
+    # 3. User Storage Folders & Volumes
     user_home = os.path.expanduser("~")
-    for subdir_name in ["Downloads", "Documents", "Pictures", "Desktop"]:
+    for subdir_name in ["Downloads", "Documents", "Pictures", "Desktop", "Movies", "Music"]:
         full_sub = os.path.join(user_home, subdir_name)
         if os.path.exists(full_sub):
             try:
@@ -178,17 +185,17 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
                 devices.append({
                     "id": f"dir_{subdir_name.lower()}",
                     "device_path": full_sub,
-                    "name": f"Local Storage: ~/{subdir_name}",
-                    "description": f"On-Device Folder • {format_bytes_human(total_b)}",
+                    "name": f"Storage: ~/{subdir_name}",
+                    "description": f"User Folder • {format_bytes_human(total_b)}",
                     "size_bytes": total_b,
                     "size_str": format_bytes_human(total_b),
-                    "type": "Local Storage",
+                    "type": "User Storage",
                     "is_mounted": True,
                 })
             except Exception:
                 pass
 
-    # Default selection
+    # Default selection: prioritize user home or virtual disk image
     if devices and not ACTIVE_SESSION["selected_drive_path"]:
         ACTIVE_SESSION["selected_drive_path"] = devices[0]["device_path"]
         ACTIVE_SESSION["selected_drive_name"] = devices[0]["name"]
@@ -199,8 +206,8 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
 
 def execute_background_scan(target_path: str):
     """
-    Executes a real scan on the specified target path (disk image, physical drive, or on-device storage).
-    Discovers files live, tests readability, detects zero-fill repairs, and updates progress in real-time.
+    Executes an intelligent scan prioritizing real user documents, images, and archives,
+    filtering out hidden cache noise and calculating accurate byte totals.
     """
     global ACTIVE_SESSION
     CANCEL_SCAN.clear()
@@ -220,12 +227,10 @@ def execute_background_scan(target_path: str):
         ACTIVE_SESSION["is_paused"] = False
         ACTIVE_SESSION["start_time"] = time.time()
 
-    print(f"[*] Starting live scan on target: {target_path}")
+    print(f"[*] Starting prioritized storage scan on: {target_path}")
 
-    # Mode 1: Disk Image or Physical Drive with NTFS Partition
-    is_disk_path = target_path.startswith(r"\\.\PhysicalDrive") or target_path.startswith("/dev/") or target_path.endswith((".img", ".raw", ".dd"))
-    
-    if is_disk_path:
+    # Mode 1: NTFS Disk Image (.img, .raw, .dd)
+    if target_path.endswith((".img", ".raw", ".dd")) and os.path.exists(target_path):
         try:
             reader = RawDiskReader(target_path, sector_size=512, default_timeout_ms=ACTIVE_SESSION["timeout_ms"])
             parts = scan_partitions(reader)
@@ -275,88 +280,105 @@ def execute_background_scan(target_path: str):
             else:
                 reader.close()
         except Exception as e:
-            print(f"[-] NTFS scan not applicable for {target_path} ({e}), falling back to direct storage traversal...")
+            print(f"[-] NTFS image scan error: {e}")
 
-    # Mode 2: Directory / On-Device Storage Traversal
-    scan_root = target_path if (os.path.exists(target_path) and os.path.isdir(target_path)) else os.path.expanduser("~")
-    max_scan_files = 800
+    # Mode 2: User Storage Traversal (Prioritizing Downloads, Documents, Desktop, Pictures, Movies)
+    user_home = os.path.expanduser("~")
+    
+    if os.path.isdir(target_path):
+        scan_roots = [target_path]
+    else:
+        # Scan user media folders in order of user importance
+        scan_roots = [
+            os.path.join(user_home, "Downloads"),
+            os.path.join(user_home, "Desktop"),
+            os.path.join(user_home, "Pictures"),
+            os.path.join(user_home, "Documents"),
+            os.path.join(user_home, "Movies"),
+            os.path.join(user_home, "Music"),
+            os.path.abspath("."),
+        ]
+
+    max_scan_files = 2000
     file_count = 0
 
     try:
-        for root, dirs, files in os.walk(scan_root):
-            if CANCEL_SCAN.is_set():
+        for sroot in scan_roots:
+            if not os.path.exists(sroot):
+                continue
+            if CANCEL_SCAN.is_set() or file_count >= max_scan_files:
                 break
-            while PAUSE_SCAN.is_set() and not CANCEL_SCAN.is_set():
-                time.sleep(0.1)
 
-            # Process files in directory
-            for f in files:
-                if CANCEL_SCAN.is_set():
+            for root, dirs, files in os.walk(sroot):
+                if CANCEL_SCAN.is_set() or file_count >= max_scan_files:
                     break
                 while PAUSE_SCAN.is_set() and not CANCEL_SCAN.is_set():
                     time.sleep(0.1)
 
-                # Skip hidden / system temp files
-                if f.startswith("."):
-                    continue
+                # Prune junk directories (node_modules, .git, .cache, etc.)
+                dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS and not d.startswith(".")]
 
-                full_p = os.path.join(root, f)
-                try:
-                    sz = os.path.getsize(full_p)
-                    mtime = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(os.path.getmtime(full_p)))
-
-                    # Test readability of the file's first block
-                    status = "Good"
-                    try:
-                        with open(full_p, "rb") as test_f:
-                            test_f.read(min(4096, sz))
-                    except Exception:
-                        status = "Partial"
-
-                    mime = mimetypes.guess_type(f)[0] or "File"
-                    rel_p = "\\" + os.path.relpath(os.path.dirname(full_p), scan_root).replace("/", "\\")
-
-                    file_obj = {
-                        "id": len(ACTIVE_SESSION["all_files"]),
-                        "name": f,
-                        "is_folder": False,
-                        "status": status,
-                        "size": format_bytes_human(sz),
-                        "raw_size": sz,
-                        "modified": mtime,
-                        "path": rel_p if rel_p != "\\." else "\\",
-                        "type": mime,
-                        "real_path": full_p,
-                    }
-
-                    ACTIVE_SESSION["all_files"].append(file_obj)
-                    ACTIVE_SESSION["stats"]["files_found"] += 1
-                    if status == "Good":
-                        ACTIVE_SESSION["stats"]["good_files"] += 1
-                    else:
-                        ACTIVE_SESSION["stats"]["partial_files"] += 1
-                    ACTIVE_SESSION["stats"]["total_bytes"] += sz
-
-                    file_count += 1
-                    ACTIVE_SESSION["stats"]["percent_complete"] = min(100.0, round((file_count / max_scan_files) * 100.0, 1))
-
-                    # Fluid UI rendering delay
-                    time.sleep(0.01)
-
-                    if file_count >= max_scan_files:
+                for f in files:
+                    if CANCEL_SCAN.is_set() or file_count >= max_scan_files:
                         break
-                except Exception:
-                    continue
+                    while PAUSE_SCAN.is_set() and not CANCEL_SCAN.is_set():
+                        time.sleep(0.1)
 
-            if file_count >= max_scan_files:
-                break
+                    if f.startswith(".") or f.endswith((".pyc", ".lock", ".log", ".tmp")):
+                        continue
+
+                    full_p = os.path.join(root, f)
+                    try:
+                        sz = os.path.getsize(full_p)
+                        mtime = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(os.path.getmtime(full_p)))
+
+                        # Direct test read of first block
+                        status = "Good"
+                        try:
+                            with open(full_p, "rb") as test_f:
+                                test_f.read(min(4096, sz))
+                        except Exception:
+                            status = "Partial"
+
+                        mime = mimetypes.guess_type(f)[0] or "File"
+                        rel_dir = os.path.relpath(os.path.dirname(full_p), user_home)
+                        rel_p = "\\" + rel_dir.replace("/", "\\") if rel_dir != "." else "\\"
+
+                        file_obj = {
+                            "id": len(ACTIVE_SESSION["all_files"]),
+                            "name": f,
+                            "is_folder": False,
+                            "status": status,
+                            "size": format_bytes_human(sz),
+                            "raw_size": sz,
+                            "modified": mtime,
+                            "path": rel_p,
+                            "type": mime,
+                            "real_path": full_p,
+                        }
+
+                        ACTIVE_SESSION["all_files"].append(file_obj)
+                        ACTIVE_SESSION["stats"]["files_found"] += 1
+                        if status == "Good":
+                            ACTIVE_SESSION["stats"]["good_files"] += 1
+                        else:
+                            ACTIVE_SESSION["stats"]["partial_files"] += 1
+                        ACTIVE_SESSION["stats"]["total_bytes"] += sz
+
+                        file_count += 1
+                        ACTIVE_SESSION["stats"]["percent_complete"] = min(100.0, round((file_count / 300) * 100.0, 1))
+
+                        # Smooth streaming cadence
+                        time.sleep(0.015)
+                    except Exception:
+                        continue
 
     except Exception as e:
         print(f"[-] Scan traversal error: {e}")
 
     ACTIVE_SESSION["stats"]["percent_complete"] = 100.0
     ACTIVE_SESSION["is_running"] = False
-    print(f"[+] Scan completed. Discovered {len(ACTIVE_SESSION['all_files'])} real files.")
+    print(f"[+] Prioritized scan complete: {len(ACTIVE_SESSION['all_files'])} user files ({format_bytes_human(ACTIVE_SESSION['stats']['total_bytes'])}).")
 
 
 class UnifiedStudioHandler(BaseHTTPRequestHandler):
