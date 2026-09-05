@@ -123,7 +123,7 @@
                 <line x1="6" y1="6" x2="6.01" y2="6"></line>
                 <line x1="6" y1="18" x2="6.01" y2="18"></line>
               </svg>
-              <span>Drives &amp; Volumes</span>
+              <span>Drives &amp; Storage</span>
             </button>
 
             <button onclick="openModal('sessionsModal')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-xs transition text-left">
@@ -137,7 +137,7 @@
 
           <!-- Folders Quick Access (Explorer Style) -->
           <div class="pt-3 border-t border-slate-100 space-y-1">
-            <div class="text-[10px] uppercase font-bold text-slate-400 px-3 tracking-wider">Storage Folders</div>
+            <div class="text-[10px] uppercase font-bold text-slate-400 px-3 tracking-wider">Discovered Folders</div>
             <button onclick="filterByFolder('ALL')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 text-left">
               <span class="flex items-center gap-2">📁 All Files</span>
               <span id="quickCountAll" class="text-[10px] text-slate-400 font-mono">0</span>
@@ -188,10 +188,10 @@
 
               <div>
                 <div class="flex items-center gap-2">
-                  <h3 id="driveTitle" class="text-sm font-extrabold text-slate-900">Detecting Storage...</h3>
+                  <h3 id="driveTitle" class="text-sm font-extrabold text-slate-900">Virtual Test Drive</h3>
                   <span id="scanStatusBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Idle</span>
                 </div>
-                <div id="driveMeta" class="text-xs text-slate-500 mt-0.5 font-mono">Ready to scan</div>
+                <div id="driveMeta" class="text-xs text-slate-500 mt-0.5 font-mono">virtual_failing_disk.img • 16.0 MB</div>
                 
                 <!-- Linear Progress Bar -->
                 <div class="flex items-center gap-3 mt-1.5 w-72 max-w-full">
@@ -312,7 +312,7 @@
             <div id="fileTableRows" class="space-y-0.5 max-h-60 overflow-y-auto text-xs">
               <div id="emptyTablePrompt" class="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
                 <span class="text-2xl">🖴</span>
-                <span>Click <strong>Start Scan</strong> above to begin scanning the drive.</span>
+                <span>Click <strong>Start Scan</strong> above to begin scanning storage.</span>
               </div>
             </div>
 
@@ -631,13 +631,14 @@
     let selectedCheckboxIndices = new Set();
     let activeFiles = [];
     let connectedDrives = [];
+    let currentSelectedDrivePath = "";
     let currentFilterFolder = 'ALL';
     let currentFilterStatus = 'ALL';
 
     window.addEventListener('DOMContentLoaded', () => {
       fetchLiveDrives();
       pollLiveStatus();
-      setInterval(pollLiveStatus, 1000);
+      setInterval(pollLiveStatus, 500);
     });
 
     async function fetchLiveDrives() {
@@ -650,6 +651,7 @@
 
         if (connectedDrives.length > 0) {
           const d = connectedDrives[0];
+          currentSelectedDrivePath = d.device_path;
           document.getElementById('driveTitle').innerText = d.name;
           document.getElementById('driveMeta').innerText = `${d.device_path} • ${d.size_str || 'Direct Storage'}`;
         }
@@ -668,6 +670,7 @@
         if (data.selected_drive_name) {
           document.getElementById('driveTitle').innerText = data.selected_drive_name;
           document.getElementById('driveMeta').innerText = `${data.selected_drive_path} • ${data.selected_drive_size}`;
+          currentSelectedDrivePath = data.selected_drive_path;
         }
 
         // Update Scanner Button & Activity Badge
@@ -735,7 +738,7 @@
           updateFolderCounts();
           renderTable();
           if (selectedRowIndex < 0 && activeFiles.length > 0) {
-            selectRow(0);
+            selectRow(activeFiles[0].id);
           }
         }
 
@@ -748,7 +751,7 @@
 
     function updateFolderCounts() {
       document.getElementById('quickCountAll').innerText = activeFiles.length;
-      document.getElementById('quickCountDocs').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('doc') || f.name.endsWith('.pdf') || f.name.endsWith('.docx')).length;
+      document.getElementById('quickCountDocs').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('doc') || f.name.endsWith('.pdf') || f.name.endsWith('.docx') || f.name.endsWith('.txt')).length;
       document.getElementById('quickCountPics').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('pic') || f.name.endsWith('.jpg') || f.name.endsWith('.png')).length;
       document.getElementById('quickCountDown').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('down') || f.name.endsWith('.zip')).length;
       document.getElementById('quickCountDesk').innerText = activeFiles.filter(f => f.path.toLowerCase().includes('desk')).length;
@@ -937,6 +940,7 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({
+              target_path: currentSelectedDrivePath,
               dest: document.getElementById('destDirInput').value,
             })
           });
@@ -1022,7 +1026,7 @@
       container.innerHTML = drives.map(d => `
         <div onclick="selectActiveDrive('${d.device_path}', '${d.name}', '${d.size_str || ''}')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer flex items-center justify-between transition">
           <div class="flex items-center gap-3">
-            <span class="text-xl">🖴</span>
+            <span class="text-xl">${d.type === 'Disk Image' ? '🗄️' : (d.is_mounted ? '📁' : '🖴')}</span>
             <div>
               <div class="text-xs font-bold text-slate-800">${d.name}</div>
               <div class="text-[10px] text-slate-500 font-mono">${d.description || d.device_path}</div>
@@ -1034,6 +1038,7 @@
     }
 
     async function selectActiveDrive(path, name, sizeStr) {
+      currentSelectedDrivePath = path;
       try {
         await fetch('/api/select_drive', {
           method: 'POST',
