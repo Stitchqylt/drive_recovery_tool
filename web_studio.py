@@ -17,6 +17,8 @@ import glob
 import json
 import time
 import shutil
+import zipfile
+import plistlib
 import mimetypes
 import subprocess
 import webbrowser
@@ -204,6 +206,179 @@ def list_all_storage_devices() -> List[Dict[str, Any]]:
     return devices
 
 
+def get_file_preview_metadata(file_id: int, real_p: str, matched: dict) -> dict:
+    """Extracts rich visual preview metadata for PDFs, Apps, Folders, Images, Code/Text, Archives, and Databases."""
+    name = os.path.basename(real_p)
+    ext = os.path.splitext(name)[1].lower()
+    
+    # 1. Directory / Folder / macOS App
+    if os.path.isdir(real_p):
+        if real_p.endswith(".app") or matched.get("is_app"):
+            app_name = name.replace(".app", "")
+            app_ver = "1.0"
+            bundle_id = "com.apple.application"
+            plist_p = os.path.join(real_p, "Contents", "Info.plist")
+            if os.path.exists(plist_p):
+                try:
+                    with open(plist_p, "rb") as pl_f:
+                        pl = plistlib.load(pl_f)
+                        app_name = pl.get("CFBundleDisplayName") or pl.get("CFBundleName") or app_name
+                        app_ver = pl.get("CFBundleShortVersionString") or pl.get("CFBundleVersion") or app_ver
+                        bundle_id = pl.get("CFBundleIdentifier") or bundle_id
+                except Exception:
+                    pass
+            return {
+                "preview_type": "app",
+                "app_name": app_name,
+                "app_version": app_ver,
+                "app_bundle_id": bundle_id,
+                "app_type": "macOS Application Bundle (.app)",
+                "size_str": matched.get("size", "App Folder"),
+                "path": matched.get("path", real_p)
+            }
+        else:
+            items = []
+            try:
+                for entry in sorted(os.scandir(real_p), key=lambda e: (not e.is_dir(), e.name.lower())):
+                    if not entry.name.startswith("."):
+                        items.append({
+                            "name": entry.name,
+                            "is_dir": entry.is_dir(),
+                            "size_str": format_bytes_human(entry.stat().st_size) if entry.is_file() else "Folder"
+                        })
+            except Exception:
+                pass
+            return {
+                "preview_type": "folder",
+                "folder_name": name,
+                "folder_items": items[:35],
+                "folder_total_count": len(items),
+                "folder_path": matched.get("path", real_p),
+                "size_str": matched.get("size", "Folder")
+            }
+
+    # 2. PDF Document
+    if ext == ".pdf" or (matched.get("type") == "application/pdf"):
+        return {
+            "preview_type": "pdf",
+            "pdf_url": f"/api/preview_file?id={file_id}",
+            "filename": name,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # 3. Image
+    if ext in (".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg", ".bmp", ".ico", ".tiff") or (matched.get("type") and matched["type"].startswith("image/")):
+        return {
+            "preview_type": "image",
+            "img_url": f"/api/preview_file?id={file_id}",
+            "filename": name,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # 4. Text / Code / Markdown / JSON / Logs / Config
+    text_extensions = (
+        ".txt", ".py", ".js", ".jsx", ".ts", ".tsx", ".json", ".csv", ".tsv",
+        ".md", ".log", ".xml", ".html", ".css", ".ini", ".cfg", ".conf",
+        ".sh", ".bat", ".ps1", ".sql", ".yaml", ".yml", ".env", ".toml", ".c", ".cpp", ".h", ".rs", ".go"
+    )
+    if ext in text_extensions or (matched.get("type") and matched["type"].startswith("text/")):
+        text_preview = ""
+        try:
+            with open(real_p, "r", encoding="utf-8", errors="replace") as tf:
+                lines = []
+                for _ in range(70):
+                    line = tf.readline()
+                    if not line:
+                        break
+                    lines.append(line)
+                text_preview = "".join(lines)
+                if len(text_preview) > 8192:
+                    text_preview = text_preview[:8192] + "\n... [Remaining content truncated for preview] ..."
+        except Exception:
+            text_preview = "(Binary or unreadable text content)"
+        return {
+            "preview_type": "text",
+            "text_content": text_preview,
+            "filename": name,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # 5. Video & Audio
+    if ext in (".mp4", ".mov", ".webm", ".mkv", ".m4v"):
+        return {
+            "preview_type": "video",
+            "media_url": f"/api/preview_file?id={file_id}",
+            "filename": name,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+    if ext in (".mp3", ".wav", ".aac", ".flac", ".ogg", ".m4a"):
+        return {
+            "preview_type": "audio",
+            "media_url": f"/api/preview_file?id={file_id}",
+            "filename": name,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # 6. Archive (.zip, .tar, .gz)
+    if ext in (".zip", ".tar", ".gz", ".tgz"):
+        entries = []
+        try:
+            if zipfile.is_zipfile(real_p):
+                with zipfile.ZipFile(real_p, 'r') as zf:
+                    for info in zf.infolist()[:30]:
+                        entries.append({
+                            "name": info.filename,
+                            "size_str": format_bytes_human(info.file_size),
+                            "is_dir": info.is_dir()
+                        })
+        except Exception:
+            pass
+        return {
+            "preview_type": "archive",
+            "archive_entries": entries,
+            "archive_total": len(entries),
+            "filename": name,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # 7. Executables (.exe, .dmg, .pkg, .deb, .msi)
+    if ext in (".exe", ".dll", ".dmg", ".pkg", ".deb", ".msi", ".bin"):
+        return {
+            "preview_type": "app",
+            "app_name": name,
+            "app_version": "Executable Binary",
+            "app_bundle_id": "Native Application Binary",
+            "app_type": "Windows PE Executable" if ext in (".exe", ".dll") else "Installer Package / Disk Image",
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # 8. Databases & Emails (.db, .sqlite, .pst, .ost, .mbox)
+    if ext in (".db", ".sqlite", ".sqlite3", ".pst", ".ost", ".mbox", ".eml"):
+        db_type = "Microsoft Outlook Mail Archive (.pst/.ost)" if ext in (".pst", ".ost") else "SQLite Relational Database (.db)"
+        return {
+            "preview_type": "database",
+            "db_name": name,
+            "db_type": db_type,
+            "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+            "path": matched.get("path", real_p)
+        }
+
+    # Default Fallback
+    return {
+        "preview_type": "fallback",
+        "filename": name,
+        "size_str": matched.get("size", format_bytes_human(os.path.getsize(real_p))),
+        "path": matched.get("path", real_p)
+    }
+
+
 def execute_background_scan(target_path: str):
     """
     Executes an intelligent scan prioritizing real user documents, images, and archives,
@@ -253,6 +428,7 @@ def execute_background_scan(target_path: str):
                             "id": len(ACTIVE_SESSION["all_files"]),
                             "name": file_info.filename,
                             "is_folder": False,
+                            "is_app": False,
                             "status": status,
                             "size": format_bytes_human(file_info.file_size),
                             "raw_size": file_info.file_size,
@@ -282,18 +458,20 @@ def execute_background_scan(target_path: str):
         except Exception as e:
             print(f"[-] NTFS image scan error: {e}")
 
-    # Mode 2: User Storage Traversal (Prioritizing Downloads, Documents, Desktop, Pictures, Movies)
+    # Mode 2: User Storage Traversal (Prioritizing Downloads, Documents, Desktop, Pictures, Applications)
     user_home = os.path.expanduser("~")
     
     if os.path.isdir(target_path):
         scan_roots = [target_path]
     else:
-        # Scan user media folders in order of user importance
+        # Scan user media and app folders in order of user importance
         scan_roots = [
             os.path.join(user_home, "Downloads"),
             os.path.join(user_home, "Desktop"),
             os.path.join(user_home, "Pictures"),
             os.path.join(user_home, "Documents"),
+            os.path.join(user_home, "Applications"),
+            "/Applications",
             os.path.join(user_home, "Movies"),
             os.path.join(user_home, "Music"),
             os.path.abspath("."),
@@ -314,6 +492,69 @@ def execute_background_scan(target_path: str):
                     break
                 while PAUSE_SCAN.is_set() and not CANCEL_SCAN.is_set():
                     time.sleep(0.1)
+
+                # Detect macOS Application bundles in directory list
+                app_dirs = [d for d in dirs if d.endswith(".app")]
+                for ad in app_dirs:
+                    full_app = os.path.join(root, ad)
+                    try:
+                        dirs.remove(ad)
+                    except ValueError:
+                        pass
+                    try:
+                        mtime = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(os.path.getmtime(full_app)))
+                        rel_dir = os.path.relpath(root, user_home)
+                        rel_p = "\\" + rel_dir.replace("/", "\\") if rel_dir != "." else "\\"
+                        file_obj = {
+                            "id": len(ACTIVE_SESSION["all_files"]),
+                            "name": ad,
+                            "is_folder": False,
+                            "is_app": True,
+                            "status": "Good",
+                            "size": "App Bundle",
+                            "raw_size": 0,
+                            "modified": mtime,
+                            "path": rel_p,
+                            "type": "macOS Application",
+                            "real_path": full_app,
+                        }
+                        ACTIVE_SESSION["all_files"].append(file_obj)
+                        ACTIVE_SESSION["stats"]["files_found"] += 1
+                        ACTIVE_SESSION["stats"]["good_files"] += 1
+                        file_count += 1
+                    except Exception:
+                        pass
+
+                # Detect user folders
+                for d in list(dirs):
+                    if d in EXCLUDED_DIRS or d.startswith("."):
+                        continue
+                    full_dir = os.path.join(root, d)
+                    try:
+                        if root in scan_roots:
+                            mtime = time.strftime("%m/%d/%Y %I:%M %p", time.localtime(os.path.getmtime(full_dir)))
+                            rel_dir = os.path.relpath(root, user_home)
+                            rel_p = "\\" + rel_dir.replace("/", "\\") if rel_dir != "." else "\\"
+                            item_count = len([x for x in os.listdir(full_dir) if not x.startswith(".")])
+                            file_obj = {
+                                "id": len(ACTIVE_SESSION["all_files"]),
+                                "name": d,
+                                "is_folder": True,
+                                "is_app": False,
+                                "status": "Good",
+                                "size": f"{item_count} items",
+                                "raw_size": 0,
+                                "modified": mtime,
+                                "path": rel_p,
+                                "type": "Folder",
+                                "real_path": full_dir,
+                            }
+                            ACTIVE_SESSION["all_files"].append(file_obj)
+                            ACTIVE_SESSION["stats"]["files_found"] += 1
+                            ACTIVE_SESSION["stats"]["good_files"] += 1
+                            file_count += 1
+                    except Exception:
+                        pass
 
                 # Prune junk directories (node_modules, .git, .cache, etc.)
                 dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS and not d.startswith(".")]
@@ -341,6 +582,8 @@ def execute_background_scan(target_path: str):
                             status = "Partial"
 
                         mime = mimetypes.guess_type(f)[0] or "File"
+                        if f.lower().endswith(".pdf"):
+                            mime = "application/pdf"
                         rel_dir = os.path.relpath(os.path.dirname(full_p), user_home)
                         rel_p = "\\" + rel_dir.replace("/", "\\") if rel_dir != "." else "\\"
 
@@ -348,6 +591,7 @@ def execute_background_scan(target_path: str):
                             "id": len(ACTIVE_SESSION["all_files"]),
                             "name": f,
                             "is_folder": False,
+                            "is_app": False,
                             "status": status,
                             "size": format_bytes_human(sz),
                             "raw_size": sz,
@@ -369,7 +613,7 @@ def execute_background_scan(target_path: str):
                         ACTIVE_SESSION["stats"]["percent_complete"] = min(100.0, round((file_count / 300) * 100.0, 1))
 
                         # Smooth streaming cadence
-                        time.sleep(0.015)
+                        time.sleep(0.012)
                     except Exception:
                         continue
 
@@ -426,6 +670,21 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
                 "dest_dir": ACTIVE_SESSION["dest_dir"],
             })
 
+        elif path == "/api/preview_meta":
+            qs = parse_qs(parsed.query)
+            file_id_str = qs.get("id", ["0"])[0]
+            try:
+                file_id = int(file_id_str)
+                matched = next((f for f in ACTIVE_SESSION["all_files"] if f.get("id") == file_id), None)
+                if matched and matched.get("real_path") and os.path.exists(matched["real_path"]):
+                    real_p = matched["real_path"]
+                    res = get_file_preview_metadata(file_id, real_p, matched)
+                    self._send_json(res)
+                    return
+            except Exception as e:
+                print(f"[-] Preview meta error: {e}")
+            self._send_json({"preview_type": "fallback", "error": "No metadata available"})
+
         elif path == "/api/preview_file":
             qs = parse_qs(parsed.query)
             file_id_str = qs.get("id", ["0"])[0]
@@ -434,17 +693,31 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
                 matched = next((f for f in ACTIVE_SESSION["all_files"] if f.get("id") == file_id), None)
                 if matched and matched.get("real_path") and os.path.exists(matched["real_path"]):
                     real_p = matched["real_path"]
-                    mime, _ = mimetypes.guess_type(real_p)
-                    if mime and mime.startswith("image/"):
-                        with open(real_p, "rb") as img_f:
-                            data = img_f.read()
-                        self.send_response(200)
-                        self.send_header("Content-Type", mime)
-                        self.end_headers()
-                        self.wfile.write(data)
+                    if os.path.isdir(real_p):
+                        self._send_json({"error": "Directory preview not available via raw stream"})
                         return
-            except Exception:
-                pass
+
+                    mime, _ = mimetypes.guess_type(real_p)
+                    if not mime:
+                        if real_p.lower().endswith(".pdf"):
+                            mime = "application/pdf"
+                        else:
+                            mime = "application/octet-stream"
+
+                    with open(real_p, "rb") as f_stream:
+                        data = f_stream.read()
+
+                    self.send_response(200)
+                    self.send_header("Content-Type", mime)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.send_header("Content-Disposition", f'inline; filename="{os.path.basename(real_p)}"')
+                    self.send_header("Access-Control-Allow-Origin", "*")
+                    self.send_header("Cache-Control", "public, max-age=3600")
+                    self.end_headers()
+                    self.wfile.write(data)
+                    return
+            except Exception as e:
+                print(f"[-] Preview stream error: {e}")
             self._send_json({"error": "No preview available"})
 
         elif path == "/api/sessions":
