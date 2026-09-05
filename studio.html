@@ -528,7 +528,7 @@
         <div class="pt-3 border-t border-slate-100 flex items-center gap-1">
           <button id="btnRecoverSingle" onclick="recoverSingleFile()" disabled class="w-full py-2.5 px-4 rounded-xl bg-[#2563EB] disabled:bg-slate-200 disabled:text-slate-400 hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer">
             <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span>Recover this file</span>
+            <span id="btnRecoverSingleLabel">Recover this file</span>
           </button>
         </div>
 
@@ -974,6 +974,13 @@
       document.getElementById('previewTitle').innerText = f.name;
       document.getElementById('previewBadgeType').innerText = f.name.includes('.') ? f.name.split('.').pop().toUpperCase() : (f.is_app ? 'APP' : (f.is_folder ? 'FOLDER' : 'FILE'));
       
+      // Update single recovery button label with exact file name so user knows with 100% certainty what is being recovered
+      const btnLabel = document.getElementById('btnRecoverSingleLabel');
+      if (btnLabel) {
+        const shortName = f.name.length > 22 ? f.name.substring(0, 20) + '...' : f.name;
+        btnLabel.innerText = f.is_folder ? `Recover Folder "${shortName}"` : `Recover "${shortName}"`;
+      }
+
       if (f.status === 'Partial') {
         document.getElementById('detStatus').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 🟠 Partial`;
         document.getElementById('detStatus').className = "font-semibold text-amber-600 flex items-center gap-1.5";
@@ -1117,6 +1124,7 @@
       } else {
         selectedCheckboxIndices.add(id);
       }
+      selectRow(id); // Synchronize inspection panel immediately!
       updateSelectedButtonLabel();
       renderTable();
     }
@@ -1209,13 +1217,15 @@
     async function recoverSingleFile() {
       if (selectedRowIndex < 0) return;
       const dest = document.getElementById('destDirInput').value;
+      const f = activeFiles.find(item => item.id === selectedRowIndex);
+      if (!f) return;
       
       try {
         const res = await fetch('/api/recover_files', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
-            file_ids: [selectedRowIndex],
+            file_ids: [f.id],
             dest_dir: dest,
           })
         });
@@ -1231,6 +1241,10 @@
       const ids = Array.from(selectedCheckboxIndices);
 
       if (ids.length === 0) {
+        if (selectedRowIndex >= 0) {
+          recoverSingleFile();
+          return;
+        }
         showToast("⚠️ Please select at least one file to recover.");
         return;
       }
