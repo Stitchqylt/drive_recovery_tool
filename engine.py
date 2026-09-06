@@ -1,5 +1,5 @@
 """
-recovery_engine.py - Core Fault-Tolerant File Recovery Engine with Mapfile & Forensic Verification
+engine.py - Core Fault-Tolerant File Recovery Engine with Mapfile & Forensic Verification
 
 Executes sequential and multi-pass sector-aligned file extraction from failing NTFS volumes.
 Includes S.M.A.R.T. hardware telemetry, streaming SHA-256 cryptographic hashing,
@@ -13,9 +13,9 @@ import logging
 import threading
 from typing import Dict, List, Optional, Callable, Any
 
-from ntfs_parser import NTFSVolume, NTFSFileInfo, DataRun
-from raw_io import RawDiskReader
-from mapfile import (
+from ntfs import NTFSVolume, NTFSFileInfo, DataRun
+from diskio import RawDiskReader
+from recovery_map import (
     RecoveryMapFile,
     STATE_UNTOUCHED,
     STATE_RECOVERED,
@@ -23,11 +23,11 @@ from mapfile import (
     STATE_BAD,
     STATE_SCRAPED,
 )
-from watchdog import WatchdogDiskReader
-from file_carver import FileCarver, CarvedFile
-from hash_verifier import StreamHasher
-from smart_monitor import query_smart_health, SmartHealthReport
-from audit_report import generate_audit_report_html
+from monitor import WatchdogDiskReader
+from carver import FileCarver, CarvedFile
+from hash_verify import StreamHasher
+from health import query_smart_health, SmartHealthReport
+from report import generate_audit_report_html
 
 
 class RecoveryStats:

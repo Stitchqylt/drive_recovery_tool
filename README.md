@@ -6,9 +6,9 @@ A lightweight data recovery utility designed to safely read failing/degrading ph
 
 | Platform | Physical Drive Access | GUI | Web Studio | CLI |
 |----------|----------------------|-----|------------|-----|
-| **Windows** | ✅ `\\.\PhysicalDriveX` (Win32 Direct I/O + CancelIoEx) | ✅ Tkinter (`RUN_GUI.bat`) | ✅ `--web` flag | ✅ `--cli` |
-| **macOS** | ✅ `/dev/rdiskX` (O_DIRECT + pread + fcntl F_NOCACHE) | ❌ | ✅ `--web` flag | ✅ `--cli` |
-| **Linux** | ✅ `/dev/sdX`, `/dev/nvmeX` (O_DIRECT + pread) | ❌ | ✅ `--web` flag | ✅ `--cli` |
+| **Windows** |  `\\.\PhysicalDriveX` (Win32 Direct I/O + CancelIoEx) |  Tkinter (`RUN_GUI.bat`) |  `--web` flag |  `--cli` |
+| **macOS** |  `/dev/rdiskX` (O_DIRECT + pread + fcntl F_NOCACHE) |  |  `--web` flag |  `--cli` |
+| **Linux** |  `/dev/sdX`, `/dev/nvmeX` (O_DIRECT + pread) |  |  `--web` flag |  `--cli` |
 
 **Key difference**: On macOS/Linux, physical drive access requires **sudo/root** privileges. The Web Studio dashboard works cross-platform and is the recommended interface on non-Windows systems.
 
@@ -162,7 +162,7 @@ python main.py --cli --drive 1 --resume
 ```bash
 python main.py --cli --drive 1 --multi-pass --carve
 ```
-Phases: 1) Fast Sweep → 2) File Extraction → 3) Scraping Bad Zones → 4) Raw File Carving
+Phases: 1) Fast Sweep -> 2) File Extraction -> 3) Scraping Bad Zones -> 4) Raw File Carving
 
 ---
 

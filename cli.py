@@ -1,5 +1,5 @@
 """
-cli.py - Command Line Interface for Non-Freezing Raw Drive Recovery Tool
+cli.py - Command Line Interface for Non-Freezing Raw Drive Recovery
 
 Interactive & Batch CLI with industry-standard features:
 S.M.A.R.T. pre-flight diagnostics, cryptographic SHA-256 integrity verification,
@@ -12,19 +12,19 @@ import time
 import argparse
 from typing import Optional, Dict, Any, List
 
-from raw_io import RawDiskReader, list_physical_drives, is_admin
-from disk_layout import scan_partitions, PartitionInfo
-from ntfs_parser import NTFSVolume, read_all_mft_records
-from recovery_engine import RecoveryEngine, RecoveryStats
-from mapfile import RecoveryMapFile
+from diskio import RawDiskReader, list_physical_drives, is_admin
+from partitions import scan_partitions, PartitionInfo
+from ntfs import NTFSVolume, read_all_mft_records
+from engine import RecoveryEngine, RecoveryStats
+from recovery_map import RecoveryMapFile
 from multipass_scheduler import MultiPassScheduler
-from smart_monitor import query_smart_health
+from health import query_smart_health
 
 
 def print_banner():
     banner = r"""
 ========================================================================
-     ANTIGRAVITY RAW DRIVE RECOVERY ENGINE (INDUSTRY PRO EDITION)
+     Drive Rescue Raw Drive Recovery Engine (Industry Pro)
 ========================================================================
  Direct Win32 Overlapped Direct-I/O | Bad Sector Timeout & Zero-Fill
  S.M.A.R.T. Telemetry | SHA-256 Hashing | Priority Filter | Reverse Read
@@ -123,7 +123,7 @@ def run_cli(args=None):
     print(f"    - Hardware Health Verdict: {smart_report.health_verdict}")
     print(f"    - Reallocated Sectors: {smart_report.reallocated_sectors}")
     print(f"    - Pending Bad Sectors: {smart_report.pending_sectors}")
-    print(f"    - Temperature: {smart_report.temperature_c} °C")
+    print(f"    - Temperature: {smart_report.temperature_c}  degC")
 
     # Scan Partitions
     print("\n[*] Scanning partition tables (MBR/GPT)...")

@@ -1,5 +1,5 @@
 """
-raw_io.py - Low-Level Physical Drive Reader with Cross-Platform Direct I/O and Timeouts
+diskio.py - Low-Level Physical Drive Reader with Cross-Platform Direct I/O and Timeouts
 
 Provides sector-level direct read access to physical drives:
 - Windows: \\\\.\\PhysicalDriveX with Win32 Overlapped I/O + CancelIoEx timeouts

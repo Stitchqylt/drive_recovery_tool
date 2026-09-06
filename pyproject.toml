@@ -3,11 +3,11 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "antigravity-recovery"
+name = "drive-rescue"
 version = "1.0.0"
 description = "Zero-Freeze Raw Physical Drive & NTFS Live File Recovery Engine for Windows"
 readme = "README.md"
-authors = [{ name = "Antigravity Engineering", email = "dev@antigravity.recovery" }]
+authors = [{ name = "Drive Rescue Contributors", email = "support@drive-rescue.dev" }]
 license = { text = "MIT" }
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -30,8 +30,8 @@ requires-python = ">=3.8"
 dependencies = []
 
 [project.scripts]
-antigravity-recovery = "main:main"
-agy-recovery = "main:main"
+drive-recovery = "main:main"
+drive-rescue = "main:main"
 
 [tool.setuptools]
 py-modules = [
@@ -49,6 +49,6 @@ py-modules = [
     "audit_report",
     "cli",
     "gui",
-    "web_studio",
+    "dashboard",
 ]
 include-package-data = true

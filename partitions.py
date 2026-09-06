@@ -1,5 +1,5 @@
 """
-disk_layout.py - Partition Table Parser (MBR & GPT) and NTFS Partition Scanner
+partitions.py - Partition Table Parser (MBR & GPT) and NTFS Partition Scanner
 
 Reads raw disk LBA 0 and LBA 1+ to discover all partitions, identify GUIDs and
 MBR types, and verify NTFS Volume Boot Records (VBR).
@@ -9,7 +9,7 @@ import struct
 import uuid
 import zlib
 from typing import List, Dict, Optional, Any
-from raw_io import RawDiskReader
+from diskio import RawDiskReader
 
 # Microsoft Basic Data Partition GUID: EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
 GUID_BASIC_DATA = uuid.UUID("EBD0A0A2-B9E5-4433-87C0-68B6B72699C7")

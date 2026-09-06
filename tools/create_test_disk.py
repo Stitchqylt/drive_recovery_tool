@@ -13,7 +13,7 @@ import struct
 import argparse
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from ntfs_parser import MFT_MAGIC_FILE
+from ntfs import MFT_MAGIC_FILE
 
 
 def create_mft_record(rec_num: int, filename: str, cluster_lcn: int, cluster_count: int, file_size: int) -> bytes:

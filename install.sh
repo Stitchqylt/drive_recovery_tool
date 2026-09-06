@@ -10,32 +10,32 @@ INSTALL_DIR="${HOME}/.local/share/drive-recovery-tool"
 BIN_DIR="${HOME}/.local/bin"
 BIN_NAME="drive-recovery"
 
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     drive-recovery-tool installer (macOS/Linux)              ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "================================================================"
+echo "|     drive-recovery-tool installer (macOS/Linux)              |"
+echo "================================================================"
 echo ""
 
 # Check Python 3.8+
 PYTHON_VERSION=$(python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 REQUIRED_VERSION="3.8"
 if ! python3 -c "import sys; exit(0 if sys.version_info >= (3,8) else 1)"; then
-    echo "✗ Python 3.8+ required (found $PYTHON_VERSION)"
+    echo "FAIL Python 3.8+ required (found $PYTHON_VERSION)"
     exit 1
 fi
-echo "✓ Python $PYTHON_VERSION"
+echo "OK Python $PYTHON_VERSION"
 
 # Create directories
 mkdir -p "$INSTALL_DIR" "$BIN_DIR"
 
 # Clone/update repo
-echo "→ Installing to $INSTALL_DIR"
+echo "-> Installing to $INSTALL_DIR"
 if [ -d "$INSTALL_DIR/.git" ]; then
     cd "$INSTALL_DIR"
     git fetch origin "$BRANCH" && git reset --hard "origin/$BRANCH"
-    echo "✓ Updated existing installation"
+    echo "OK Updated existing installation"
 else
     git clone --depth 1 --branch "$BRANCH" "https://github.com/$REPO.git" "$INSTALL_DIR"
-    echo "✓ Cloned repository"
+    echo "OK Cloned repository"
 fi
 
 # Create launcher script
@@ -52,7 +52,7 @@ chmod +x "$BIN_DIR/$BIN_NAME"
 # Check PATH
 if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo ""
-    echo "⚠ Add $BIN_DIR to your PATH:"
+    echo "WARN Add $BIN_DIR to your PATH:"
     echo "    echo 'export PATH=\"\$HOME/.local/bin:\$PATH\"' >> ~/.zshrc"
     echo "    source ~/.zshrc"
     echo ""
@@ -60,9 +60,9 @@ if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
 fi
 
 echo ""
-echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║  Installation complete!                                       ║"
-echo "╚══════════════════════════════════════════════════════════════╝"
+echo "================================================================"
+echo "|  Installation complete!                                       |"
+echo "================================================================"
 echo ""
 echo "Usage:"
 echo "  $BIN_NAME --web          # Web dashboard (sudo for physical drives)"

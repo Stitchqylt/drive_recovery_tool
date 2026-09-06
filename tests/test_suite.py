@@ -25,9 +25,9 @@ import hashlib
 # Ensure source modules can be imported
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from raw_io import RawDiskReader, SectorBuffer
-from disk_layout import parse_mbr_partitions, parse_gpt_partitions, verify_ntfs_vbr, PartitionInfo
-from ntfs_parser import (
+from diskio import RawDiskReader, SectorBuffer
+from partitions import parse_mbr_partitions, parse_gpt_partitions, verify_ntfs_vbr, PartitionInfo
+from ntfs import (
     NTFSVolume,
     NTFSFileInfo,
     DataRun,
@@ -37,8 +37,8 @@ from ntfs_parser import (
     build_full_paths,
     MFT_MAGIC_FILE,
 )
-from recovery_engine import RecoveryEngine, RecoveryStats
-from mapfile import (
+from engine import RecoveryEngine, RecoveryStats
+from recovery_map import (
     RecoveryMapFile,
     MapInterval,
     STATE_UNTOUCHED,
@@ -47,12 +47,12 @@ from mapfile import (
     STATE_BAD,
     STATE_SCRAPED,
 )
-from file_carver import FileCarver
-from watchdog import WatchdogDiskReader
+from carver import FileCarver
+from monitor import WatchdogDiskReader
 from multipass_scheduler import MultiPassScheduler
-from smart_monitor import SmartHealthReport, parse_smart_data_buffer, query_smart_health
-from hash_verifier import StreamHasher, compute_file_hashes
-from audit_report import generate_audit_report_html
+from health import SmartHealthReport, parse_smart_data_buffer, query_smart_health
+from hash_verify import StreamHasher, compute_file_hashes
+from report import generate_audit_report_html
 
 
 class TestDataRunDecoder(unittest.TestCase):

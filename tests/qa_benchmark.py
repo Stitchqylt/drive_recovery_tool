@@ -22,12 +22,12 @@ from typing import Dict, Any, List
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from raw_io import RawDiskReader
-from disk_layout import parse_mbr_partitions
-from ntfs_parser import NTFSVolume, NTFSFileInfo, DataRun
-from recovery_engine import RecoveryEngine
-from mapfile import RecoveryMapFile, STATE_RECOVERED, STATE_BAD
-from hash_verifier import compute_file_hashes
+from diskio import RawDiskReader
+from partitions import parse_mbr_partitions
+from ntfs import NTFSVolume, NTFSFileInfo, DataRun
+from engine import RecoveryEngine
+from recovery_map import RecoveryMapFile, STATE_RECOVERED, STATE_BAD
+from hash_verify import compute_file_hashes
 
 
 class BenchmarkRunner:
@@ -48,7 +48,7 @@ class BenchmarkRunner:
 
     def run_all(self):
         print("\n" + "=" * 78)
-        print("  ANTIGRAVITY RAW RECOVERY ENGINE - QA BENCHMARK & AUDIT SUITE")
+        print("  Drive Rescue Raw Recovery Engine - QA Benchmark & Audit Suite")
         print("=" * 78)
 
         self.bench_1_throughput()
@@ -330,7 +330,7 @@ class BenchmarkRunner:
         for r in self.results:
             status_tag = "[PASS]" if r["passed"] else "[FAIL]"
             print(f" {status_tag} {r['name']:<46} : {r['score']:>2}/{r['max_score']:<2} pts")
-            print(f"        └─ {r['details']}")
+            print(f"        +--- {r['details']}")
 
         print("-" * 78)
         print(f" TOTAL SCORE: {self.total_score} / {self.max_score} POINTS")

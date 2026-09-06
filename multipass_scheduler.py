@@ -10,8 +10,8 @@ Implements a 4-phase industrial recovery strategy:
 
 import time
 from typing import Dict, List, Optional, Callable, Any
-from ntfs_parser import NTFSVolume, NTFSFileInfo, DataRun
-from mapfile import (
+from ntfs import NTFSVolume, NTFSFileInfo, DataRun
+from recovery_map import (
     RecoveryMapFile,
     STATE_UNTOUCHED,
     STATE_RECOVERED,
@@ -19,8 +19,8 @@ from mapfile import (
     STATE_BAD,
     STATE_SCRAPED,
 )
-from watchdog import WatchdogDiskReader
-from file_carver import FileCarver
+from monitor import WatchdogDiskReader
+from carver import FileCarver
 
 
 class MultiPassScheduler:

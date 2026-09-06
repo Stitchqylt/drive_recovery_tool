@@ -1,0 +1,10 @@
+include README.md
+include CHANGELOG.md
+include LICENSE
+include SECURITY.md
+include CONTRIBUTING.md
+include dashboard.html
+include *.bat
+include *.sh
+include *.ps1
+recursive-include tests *.py

@@ -11,9 +11,9 @@ Features:
    - Yellow: Slow / Skipped
    - Dark Gray: Untouched
 5. Live Hierarchical File Tree (ttk.Treeview) with color-coded status tags:
-   - 🟢 RECOVERED
-   - 🟡 PARTIAL (Zero-filled)
-   - 🔴 FAILED
+   - [G] RECOVERED
+   - [Y] PARTIAL (Zero-filled)
+   - [R] FAILED
 6. Copy CLI Command Exporter.
 """
 
@@ -25,11 +25,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from typing import List, Dict, Optional, Any
 
-from raw_io import RawDiskReader, list_physical_drives, is_admin
-from disk_layout import scan_partitions, PartitionInfo
-from ntfs_parser import NTFSVolume, read_all_mft_records, NTFSFileInfo
-from recovery_engine import RecoveryEngine, RecoveryStats
-from mapfile import (
+from diskio import RawDiskReader, list_physical_drives, is_admin
+from partitions import scan_partitions, PartitionInfo
+from ntfs import NTFSVolume, read_all_mft_records, NTFSFileInfo
+from engine import RecoveryEngine, RecoveryStats
+from recovery_map import (
     RecoveryMapFile,
     STATE_UNTOUCHED,
     STATE_RECOVERED,
@@ -284,11 +284,11 @@ class RecoveryApp(tk.Tk):
         legend_frame = ttk.Frame(grid_container)
         legend_frame.pack(fill=tk.X, pady=(0, 4))
 
-        self._create_legend_item(legend_frame, COLOR_RECOVERED, "🟢 Readable / Good")
-        self._create_legend_item(legend_frame, COLOR_BAD, "🔴 Bad / Unreadable (Zero-Filled)")
-        self._create_legend_item(legend_frame, COLOR_SKIPPED, "🟡 Slow / Skipped")
-        self._create_legend_item(legend_frame, COLOR_SCRAPED, "🔵 Scraped")
-        self._create_legend_item(legend_frame, COLOR_UNTOUCHED, "⚪ Untouched")
+        self._create_legend_item(legend_frame, COLOR_RECOVERED, "[G] Readable / Good")
+        self._create_legend_item(legend_frame, COLOR_BAD, "[R] Bad / Unreadable (Zero-Filled)")
+        self._create_legend_item(legend_frame, COLOR_SKIPPED, "[Y] Slow / Skipped")
+        self._create_legend_item(legend_frame, COLOR_SCRAPED, "[B] Scraped")
+        self._create_legend_item(legend_frame, COLOR_UNTOUCHED, "[-] Untouched")
 
         # Sector Canvas
         self.sector_grid = SectorGridCanvas(grid_container, rows=8, cols=72, cell_size=10, height=105)
@@ -663,7 +663,7 @@ class RecoveryApp(tk.Tk):
             size_kb = current_file.file_size / 1024.0
             size_str = f"{size_kb:3.1f} KB" if size_kb < 1024 else f"{size_kb/1024:3.2f} MB"
             tag = outcome
-            status_display = f"🟢 {outcome}" if outcome == "RECOVERED" else (f"🟡 {outcome}" if outcome == "PARTIAL" else f"🔴 {outcome}")
+            status_display = f"[G] {outcome}" if outcome == "RECOVERED" else (f"[Y] {outcome}" if outcome == "PARTIAL" else f"[R] {outcome}")
             good_c = len(current_file.data_runs) if outcome == "RECOVERED" else ("Partial" if outcome == "PARTIAL" else "0")
             bad_c = "0" if outcome == "RECOVERED" else ("Bad Sectors" if outcome == "PARTIAL" else "All Bad")
 

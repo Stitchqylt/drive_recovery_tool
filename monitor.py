@@ -1,5 +1,5 @@
 """
-watchdog.py - Process Watchdog & Resilient I/O Isolation Arbiter
+monitor.py - Process Watchdog & Resilient I/O Isolation Arbiter
 
 Monitors raw I/O execution with independent watchdog timers.
 Protects the main recovery application from kernel storage driver deadlocks
@@ -9,7 +9,7 @@ by enforcing hard external cancellation and recovery resets.
 import time
 import threading
 from typing import Optional, Callable
-from raw_io import RawDiskReader
+from diskio import RawDiskReader
 
 
 class WatchdogDiskReader:

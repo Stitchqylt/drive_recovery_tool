@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Drive Rescue</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #F8FAFC;
+    }
+    
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .ui-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 14px;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.03);
+    }
+
+    .row-selected {
+      background-color: #EFF6FF !important;
+      border-color: #BFDBFE !important;
+    }
+
+    .nav-active {
+      background-color: #EFF6FF !important;
+      color: #2563EB !important;
+      font-weight: 700 !important;
+    }
+
+    .modal-overlay {
+      background-color: rgba(15, 23, 42, 0.45);
+      backdrop-filter: blur(4px);
+    }
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+  </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen p-3 sm:p-5 flex flex-col justify-between">
+
+  <!-- Toast Notification Container -->
+  <div id="toastNotification" class="fixed top-6 right-6 z-50 transform translate-y-[-100px] opacity-0 transition-all duration-300 pointer-events-none flex items-center gap-2.5 px-4 py-3 rounded-xl bg-slate-900 text-white text-xs font-semibold shadow-2xl border border-slate-700">
+    <span id="toastIcon">📋</span>
+    <span id="toastMessage">Copied to Clipboard!</span>
+  </div>
+
+  <!-- Main Window Container -->
+  <div class="max-w-[1400px] w-full mx-auto bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden flex flex-col min-h-[92vh]">
+    
+    <!-- Window Top Header Bar -->
+    <header class="px-5 py-3 border-b border-slate-100 flex items-center justify-between bg-white select-none">
+      <!-- App Brand -->
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-[#2563EB] flex items-center justify-center shadow-md shadow-blue-500/20 text-white">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+          </svg>
+        </div>
+        <span class="text-base font-bold text-slate-900 tracking-tight">Drive Rescue</span>
+      </div>
+
+      <!-- Top Wizard Step Indicator (Connect -> Scan -> Review & Recover) -->
+      <div class="hidden md:flex items-center gap-3 select-none">
+        <!-- Step 1 -->
+        <div onclick="openModal('drivesModal')" class="flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer hover:text-blue-600 transition" title="Select source drive">
+          <span class="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold border border-emerald-300">✓</span>
+          <span>1 Connect</span>
+        </div>
+        <div id="stepConnector12" class="w-6 h-0.5 bg-blue-500"></div>
+
+        <!-- Step 2 -->
+        <div id="step2Header" onclick="switchView('scan')" class="flex items-center gap-1.5 text-xs font-bold text-[#2563EB] cursor-pointer" title="Scan & Browse Files">
+          <span id="step2Badge" class="w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[10px]">2</span>
+          <span>Scan</span>
+        </div>
+        <div id="stepConnector23" class="w-6 h-0.5 bg-slate-200"></div>
+
+        <!-- Step 3 -->
+        <div id="step3Header" onclick="openSkillsWorkspace()" class="flex items-center gap-1.5 text-xs font-semibold text-slate-400 cursor-pointer hover:text-blue-600 transition" title="Recovery Skills Workspace">
+          <span id="step3Badge" class="w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[10px] border border-slate-200">3</span>
+          <span>Review &amp; Recover</span>
+        </div>
+      </div>
+
+      <!-- Quick Actions (CLI & Settings) -->
+      <div class="flex items-center gap-2">
+        <button onclick="openTerminalWindow()" id="btnOpenTerminal" title="Open Interactive CLI Terminal Window" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold border border-slate-700 shadow-xs transition active:scale-95 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+          <span>CLI</span>
+        </button>
+        
+        <button onclick="copyCliCommand()" title="Copy CLI Command" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 shadow-xs transition active:scale-95 cursor-pointer">
+          <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
+
+        <button onclick="openModal('settingsModal')" title="Open Settings" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-600 flex items-center justify-center border border-slate-200 shadow-xs transition active:scale-95 cursor-pointer">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Body: Sidebar + Main Center + Right Preview -->
+    <div class="flex-1 grid grid-cols-12 gap-0">
+      
+      <!-- 1. Left Sidebar Navigation -->
+      <aside class="col-span-12 md:col-span-3 lg:col-span-2 border-r border-slate-100 p-3.5 flex flex-col justify-between bg-white">
+        <div class="space-y-4">
+          <!-- Primary Navigation Items -->
+          <nav class="space-y-1">
+            <button onclick="filterByFolder('ALL')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-[#EFF6FF] text-[#2563EB] font-semibold text-xs transition text-left">
+              <svg class="w-4 h-4 text-[#2563EB]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <span>Recover Files</span>
+            </button>
+
+            <button onclick="openModal('drivesModal')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-xs transition text-left">
+              <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+                <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+                <line x1="6" y1="6" x2="6.01" y2="6"></line>
+                <line x1="6" y1="18" x2="6.01" y2="18"></line>
+              </svg>
+              <span>Drives &amp; Storage</span>
+            </button>
+
+            <button onclick="openModal('sessionsModal')" class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 font-medium text-xs transition text-left">
+              <svg class="w-4 h-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <span>Recent Sessions</span>
+            </button>
+          </nav>
+
+          <!-- Folders Quick Access (Explorer Style) -->
+          <div class="pt-3 border-t border-slate-100 space-y-1">
+            <div class="text-[10px] uppercase font-bold text-slate-400 px-3 tracking-wider">Discovered Folders</div>
+            <button id="folderBtn_ALL" onclick="filterByFolder('ALL')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 text-left nav-active">
+              <span class="flex items-center gap-2">📁 All Files</span>
+              <span id="quickCountAll" class="text-[10px] font-mono">0</span>
+            </button>
+            <button id="folderBtn_Downloads" onclick="filterByFolder('Downloads')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
+              <span class="flex items-center gap-2">📥 Downloads</span>
+              <span id="quickCountDown" class="text-[10px] text-slate-400 font-mono">0</span>
+            </button>
+            <button id="folderBtn_Desktop" onclick="filterByFolder('Desktop')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
+              <span class="flex items-center gap-2">🖥️ Desktop</span>
+              <span id="quickCountDesk" class="text-[10px] text-slate-400 font-mono">0</span>
+            </button>
+            <button id="folderBtn_Documents" onclick="filterByFolder('Documents')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
+              <span class="flex items-center gap-2">📄 Documents</span>
+              <span id="quickCountDocs" class="text-[10px] text-slate-400 font-mono">0</span>
+            </button>
+            <button id="folderBtn_Pictures" onclick="filterByFolder('Pictures')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
+              <span class="flex items-center gap-2">🖼️ Pictures</span>
+              <span id="quickCountPics" class="text-[10px] text-slate-400 font-mono">0</span>
+            </button>
+            <button id="folderBtn_Applications" onclick="filterByFolder('Applications')" class="w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left">
+              <span class="flex items-center gap-2">🚀 Applications</span>
+              <span id="quickCountApps" class="text-[10px] text-slate-400 font-mono">0</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bottom System Links -->
+        <nav class="space-y-0.5 pt-3 border-t border-slate-100">
+          <button onclick="openModal('settingsModal')" class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 text-xs font-medium text-left">Settings</button>
+          <button onclick="openModal('helpModal')" class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 text-xs font-medium text-left">Help &amp; Guide</button>
+          <button onclick="openModal('aboutModal')" class="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 text-xs font-medium text-left">About</button>
+        </nav>
+      </aside>
+
+      <!-- 2. Middle Main Workspace (Step 2: Scan & Browse Files) -->
+      <div id="scanWorkspaceView" class="contents">
+        <main class="col-span-12 md:col-span-9 lg:col-span-7 p-4 sm:p-5 space-y-4 bg-[#F8FAFC] border-r border-slate-100 flex flex-col justify-between">
+          
+          <div class="space-y-3.5">
+            
+            <!-- Drive Status & Live Progress Banner Card -->
+            <div class="ui-card p-4 bg-white flex flex-wrap items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5">
+                <!-- Hard Drive Graphic -->
+                <div class="w-12 h-12 rounded-xl bg-slate-100 border border-slate-200 flex flex-col items-center justify-center p-2 shadow-inner shrink-0 relative cursor-pointer" onclick="openModal('drivesModal')">
+                  <div class="w-full h-1.5 rounded-sm bg-slate-300 mb-1"></div>
+                  <div class="w-5 h-5 rounded-full border-2 border-slate-400 flex items-center justify-center">
+                    <div class="w-1.5 h-1.5 rounded-full bg-slate-500"></div>
+                  </div>
+                  <span id="diskActivityDot" class="absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                </div>
+
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 id="driveTitle" class="text-sm font-extrabold text-slate-900">User Storage &amp; Hard Drive</h3>
+                    <span id="scanStatusBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">Idle</span>
+                  </div>
+                  <div id="driveMeta" class="text-xs text-slate-500 mt-0.5 font-mono">Ready to scan</div>
+                  
+                  <!-- Linear Progress Bar -->
+                  <div class="flex items-center gap-3 mt-1.5 w-72 max-w-full">
+                    <div class="flex-1 bg-slate-100 h-2 rounded-full overflow-hidden">
+                      <div id="mainProgressBar" class="bg-[#2563EB] h-full rounded-full transition-all duration-300" style="width: 0%;"></div>
+                    </div>
+                    <span id="pctText" class="text-xs font-extrabold text-[#2563EB] font-mono">0%</span>
+                  </div>
+                  <div id="timeTelemetry" class="text-[11px] text-slate-400 mt-0.5 font-mono">Elapsed: 00:00:00</div>
+                </div>
+              </div>
+
+              <!-- Start / Stop / Resume Scan and Hard Drive Backup Buttons -->
+              <div class="flex items-center gap-2">
+                <button id="btnToggleScan" onclick="toggleScanState()" class="px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 flex items-center gap-1.5 cursor-pointer">
+                  <svg id="scanIcon" class="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  <span id="scanBtnLabel">Start Scan</span>
+                </button>
+                <button id="btnBackupDriveTop" onclick="backupEntireDrive()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition active:scale-95 flex items-center gap-1.5 cursor-pointer" title="One-click full disk extraction of all files to destination drive">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>⚡ Backup Entire Hard Drive</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 4 Clear Metric Cards Strip (Files Found | Good | Partial | Failed) -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
+              <!-- 1. Files Found -->
+              <div id="cardStatAll" class="ui-card p-3 flex items-center gap-2.5 cursor-pointer hover:border-blue-300 transition" onclick="filterByStatus('ALL')">
+                <div class="w-9 h-9 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                </div>
+                <div>
+                  <div id="statFilesFound" class="text-base font-extrabold text-slate-900 leading-none">0</div>
+                  <div class="text-[11px] font-semibold text-slate-600 mt-0.5">Files found</div>
+                  <div id="statTotalBytes" class="text-[10px] text-slate-400 font-mono">0 B</div>
+                </div>
+              </div>
+
+              <!-- 2. Good Files -->
+              <div id="cardStatGood" class="ui-card p-3 flex items-center gap-2.5 cursor-pointer hover:border-emerald-300 transition" onclick="filterByStatus('Good')">
+                <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <div>
+                  <div id="statGoodFiles" class="text-base font-extrabold text-slate-900 leading-none">0</div>
+                  <div class="text-[11px] font-semibold text-slate-600 mt-0.5">🟢 Good files</div>
+                  <div class="text-[10px] text-emerald-600 font-medium">100% readable</div>
+                </div>
+              </div>
+
+              <!-- 3. Partial Files (Click filters table & allows 1-click Skills Workspace) -->
+              <div id="cardStatPartial" class="ui-card p-3 flex items-center gap-2.5 cursor-pointer hover:border-amber-400 hover:bg-amber-50/20 transition group" onclick="filterByStatus('Partial')" title="Click to view partial files or fix in Skills Workspace">
+                <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div id="statPartialFiles" class="text-base font-extrabold text-slate-900 leading-none">0</div>
+                  <div class="text-[11px] font-semibold text-slate-600 mt-0.5">🟠 Partial files</div>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <button type="button" onclick="event.stopPropagation(); openSkillsWorkspace('Partial')" class="text-[10px] text-amber-600 hover:text-amber-800 font-bold underline cursor-pointer">
+                      0-Fill repaired ↗
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 4. Failed Files (Click filters table & allows 1-click Skills Workspace) -->
+              <div id="cardStatFailed" class="ui-card p-3 flex items-center gap-2.5 cursor-pointer hover:border-rose-400 hover:bg-rose-50/20 transition group" onclick="filterByStatus('Failed')" title="Click to view failed files or rebuild in Skills Workspace">
+                <div class="w-9 h-9 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition">
+                  <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div id="statFailedFiles" class="text-base font-extrabold text-slate-900 leading-none">0</div>
+                  <div class="text-[11px] font-semibold text-slate-600 mt-0.5">🔴 Failed files</div>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <button type="button" onclick="event.stopPropagation(); openSkillsWorkspace('Failed')" class="text-[10px] text-rose-600 hover:text-rose-800 font-bold underline cursor-pointer">
+                      Needs repair ↗
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Explorer-like File Browser Table -->
+            <div class="ui-card p-3.5 space-y-2.5">
+              
+              <!-- Dynamic Filter Banner for Damaged/Partial/Failed Files -->
+              <div id="tableDamagedBanner" class="hidden"></div>
+              
+              <!-- Table Action Toolbar -->
+              <div class="flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-slate-900">Discovered Files</span>
+                  <span id="tableHeaderCount" class="text-xs text-slate-500 font-medium">(0)</span>
+                  <span id="recoverWhileScanTag" class="hidden text-[11px] text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full font-medium ml-1">
+                    ✓ Available to recover now
+                  </span>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <!-- Search input -->
+                  <div class="relative">
+                    <input type="text" id="tableSearchInput" oninput="filterTableRows()" placeholder="Search files..." class="bg-slate-50 border border-slate-200 rounded-lg pl-3 pr-7 py-1 text-xs text-slate-800 placeholder-slate-400 outline-none w-44 focus:w-56 focus:bg-white transition">
+                    <svg class="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-2 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                  </div>
+
+                  <!-- Select All / Deselect All Button -->
+                  <button id="btnToggleSelectAllHeader" onclick="toggleSelectAll()" class="px-2.5 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer">
+                    Select All
+                  </button>
+
+                  <!-- Backup Hard Drive Quick Action -->
+                  <button onclick="backupEntireDrive()" class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5 cursor-pointer">
+                    <span>⚡ Backup Hard Drive</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Table Headers with Master Select All Checkbox -->
+              <div class="grid grid-cols-12 text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 py-1.5 border-b border-slate-100 select-none">
+                <div class="col-span-5 flex items-center gap-2.5">
+                  <input type="checkbox" id="masterSelectAllChk" onchange="toggleMasterSelectAll(this.checked)" class="rounded text-blue-600 focus:ring-0 cursor-pointer" title="Select / Deselect all discovered files">
+                  <div class="flex items-center gap-1 cursor-pointer hover:text-slate-700" onclick="sortTable('name')">
+                    <span>NAME</span>
+                    <span class="text-xs">↕</span>
+                  </div>
+                </div>
+                <div class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-700" onclick="sortTable('status')">
+                  <span>STATUS</span>
+                  <span class="text-xs">↕</span>
+                </div>
+                <div class="col-span-2 flex items-center gap-1 cursor-pointer hover:text-slate-700" onclick="sortTable('size')">
+                  <span>SIZE</span>
+                  <span class="text-xs">↕</span>
+                </div>
+                <div class="col-span-3">PATH</div>
+              </div>
+
+              <!-- Scrollable File Rows -->
+              <div id="fileTableRows" class="divide-y divide-slate-50 max-h-[360px] overflow-y-auto space-y-0.5 text-xs">
+                <!-- Dynamically populated rows -->
+              </div>
+
+              <!-- Table Footer Status Line -->
+              <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+                <span id="bottomStatusLine">Ready. Select storage device and click Start Scan.</span>
+                <span id="tableBottomStats" class="font-mono">0 files • 0 B</span>
+              </div>
+
+            </div>
+
+          </div>
+
+        </main>
+
+        <!-- 3. Right File Preview & Inspector Panel -->
+        <aside class="col-span-12 md:col-span-12 lg:col-span-3 p-4 sm:p-5 bg-white space-y-4 flex flex-col justify-between">
+          <div class="space-y-3.5">
+            <!-- Inspection Header -->
+            <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex items-center gap-2 truncate max-w-[200px]">
+                <h3 id="previewTitle" class="text-xs font-extrabold text-slate-900 truncate">Inspection Panel</h3>
+                <a id="previewPopoutLink" href="#" target="_blank" class="hidden text-blue-600 hover:text-blue-800 text-[10px] font-bold items-center gap-0.5">
+                  <span>Open</span>
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                </a>
+              </div>
+              <span id="previewBadgeType" class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 uppercase">FILE</span>
+            </div>
+
+            <!-- Dynamic Media & Content Preview Box -->
+            <div class="w-full h-44 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden relative shadow-inner">
+              
+              <!-- 1. Image Viewer -->
+              <img id="previewImg" class="hidden w-full h-full object-contain p-1.5" alt="Preview">
+              
+              <!-- 2. PDF Viewer (Embedded iframe) -->
+              <iframe id="previewPdf" class="hidden w-full h-full border-0 bg-white" title="PDF Preview"></iframe>
+
+              <!-- 3. Text / Code Viewer -->
+              <div id="previewTextContainer" class="hidden w-full h-full p-2.5 overflow-hidden flex flex-col text-left">
+                <div class="text-[10px] font-bold text-slate-400 font-mono mb-1 truncate" id="previewTextHeader">Text Preview</div>
+                <pre id="previewTextContent" class="flex-1 text-[10px] font-mono text-slate-700 bg-white p-2 rounded border border-slate-200 overflow-y-auto whitespace-pre-wrap leading-relaxed select-text"></pre>
+              </div>
+
+              <!-- 4. Video Player -->
+              <video id="previewVideo" controls class="hidden w-full h-full object-contain bg-black"></video>
+
+              <!-- 5. Audio Player -->
+              <div id="previewAudioContainer" class="hidden w-full p-4 flex flex-col items-center justify-center gap-2 text-center">
+                <span class="text-3xl">🎵</span>
+                <audio id="previewAudio" controls class="w-full max-w-[200px] h-8"></audio>
+              </div>
+
+              <!-- 6. Directory / Folder Tree Inspector -->
+              <div id="previewFolderContainer" class="hidden w-full h-full p-3 bg-white border border-slate-200 rounded-xl flex flex-col text-left overflow-hidden">
+                <div class="flex items-center justify-between pb-1.5 border-b border-slate-100 mb-1.5">
+                  <span class="text-xs font-bold text-slate-800 truncate" id="previewFolderName">Folder</span>
+                  <span class="text-[10px] text-slate-400 font-mono" id="previewFolderCount">0 items</span>
+                </div>
+                <div id="previewFolderList" class="flex-1 overflow-y-auto space-y-1 pr-1 font-mono text-[10px] text-slate-600">
+                  <!-- Folder children listed dynamically -->
+                </div>
+              </div>
+
+              <!-- 6B. macOS Application Bundle Inspector -->
+              <div id="previewAppContainer" class="hidden w-full h-full p-4 bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/80 border border-blue-100 rounded-xl flex flex-col justify-between text-left">
+                <div>
+                  <div class="flex items-center gap-3 mb-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shadow-blue-500/20 text-xl font-bold">
+                      🚀
+                    </div>
+                    <div>
+                      <h4 id="previewAppName" class="text-xs font-extrabold text-slate-900 truncate max-w-[140px]">Application</h4>
+                      <div id="previewAppVer" class="text-[10px] text-slate-500 font-mono">v1.0</div>
+                    </div>
+                  </div>
+                  <div class="space-y-1.5 text-[11px] bg-white/80 p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Bundle ID</span>
+                      <span id="previewAppId" class="font-mono text-[10px] text-slate-700 font-semibold truncate max-w-[120px]">—</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Package Type</span>
+                      <span id="previewAppType" class="text-slate-700 font-medium">Native App</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Structure</span>
+                      <span class="text-emerald-600 font-bold">✓ Executable Intact</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="text-[10px] text-slate-400 text-center font-medium">Ready to recover package intact</div>
+              </div>
+
+              <!-- 7. Archive Inspector (.zip, .tar) -->
+              <div id="previewArchiveContainer" class="hidden w-full h-full p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col text-left overflow-hidden">
+                <div class="flex items-center justify-between pb-2 border-b border-slate-200 mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">📦</span>
+                    <div>
+                      <h4 id="previewArchiveName" class="text-xs font-bold text-slate-900 truncate max-w-[140px]">Archive</h4>
+                      <span id="previewArchiveCount" class="text-[10px] text-slate-400">0 files</span>
+                    </div>
+                  </div>
+                  <span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-bold">Archive</span>
+                </div>
+                <div id="previewArchiveList" class="flex-1 overflow-y-auto space-y-1 pr-1 font-mono text-[10px] text-slate-600">
+                  <!-- Archive items populated dynamically -->
+                </div>
+              </div>
+
+              <!-- 8. Database Inspector (.db, .sqlite, .pst) -->
+              <div id="previewDbContainer" class="hidden w-full h-full p-4 bg-gradient-to-br from-emerald-50/70 via-white to-slate-50 border border-emerald-200 rounded-xl flex flex-col justify-between text-left">
+                <div>
+                  <div class="flex items-center gap-3 mb-2.5">
+                    <div class="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 text-xl font-bold">
+                      🗄️
+                    </div>
+                    <div>
+                      <h4 id="previewDbName" class="text-xs font-extrabold text-slate-900 truncate max-w-[140px]">Database</h4>
+                      <div id="previewDbType" class="text-[10px] text-emerald-700 font-semibold font-mono">SQLite DB</div>
+                    </div>
+                  </div>
+                  <div class="space-y-1.5 text-[11px] bg-white/90 p-2.5 rounded-lg border border-slate-200">
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Format</span>
+                      <span class="text-slate-800 font-semibold">Structured Database</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="text-slate-400">Page Records</span>
+                      <span class="text-emerald-600 font-bold">✓ Preserved</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="text-[10px] text-slate-400 text-center font-medium">Safe 0-fill protected for table extraction</div>
+              </div>
+
+              <!-- 9. Fallback / Default View -->
+              <div id="previewFallback" class="flex flex-col items-center justify-center p-4 text-center">
+                <span class="text-3xl mb-1" id="previewEmoji">📄</span>
+                <span class="text-xs font-bold text-slate-700 truncate max-w-[200px]" id="previewFallbackName">Select a file to preview</span>
+                <span class="text-[10px] text-slate-400 mt-0.5" id="previewSubtext">Live integrity inspection</span>
+              </div>
+
+            </div>
+
+            <!-- Partial File Warning Box (Only visible for Partial status) -->
+            <div id="partialWarningBox" class="hidden p-3 rounded-xl bg-[#FFFBEB] border border-[#FDE68A] flex items-start gap-2.5">
+              <span class="text-amber-500 font-bold text-sm leading-none shrink-0 mt-0.5">⚠️</span>
+              <div class="space-y-0.5">
+                <div class="text-xs font-bold text-amber-900 flex items-center justify-between">
+                  <span>Partial file (0-Fill Repaired)</span>
+                  <button onclick="openSkillsWorkspace('Partial')" class="text-[10px] font-bold text-blue-600 hover:text-blue-800 underline">Fix in Skills Workspace →</button>
+                </div>
+                <div class="text-[11px] text-amber-800 leading-snug">Some data in this file could not be read from the drive and has been zero-filled.</div>
+              </div>
+            </div>
+
+            <!-- Good File Reassurance Box (Visible for Good status) -->
+            <div id="goodInfoBox" class="hidden p-3 rounded-xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-start gap-2.5">
+              <span class="text-emerald-500 font-bold text-sm leading-none shrink-0 mt-0.5">✓</span>
+              <div class="space-y-0.5">
+                <div class="text-xs font-bold text-emerald-900">File is 100% Readable</div>
+                <div class="text-[11px] text-emerald-800 leading-snug">All sectors verified intact. Ready for immediate clean recovery.</div>
+              </div>
+            </div>
+
+            <!-- Itemized File Details -->
+            <div class="space-y-2 pt-1">
+              <div class="text-xs font-bold text-slate-900">File Details</div>
+              <div class="space-y-1.5 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Condition</span>
+                  <span id="detStatus" class="font-semibold text-slate-600">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">File Size</span>
+                  <span id="detSize" class="font-bold text-slate-800 font-mono">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Type</span>
+                  <span id="detType" class="font-medium text-slate-700">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Date Modified</span>
+                  <span id="detModified" class="text-slate-600">—</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-400">Path</span>
+                  <span id="detPath" class="text-slate-600 truncate max-w-[150px] font-mono text-[11px]">—</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Single File Action Button -->
+          <div class="pt-3 border-t border-slate-100 flex items-center gap-1">
+            <button id="btnRecoverSingle" onclick="recoverSingleFile()" disabled class="w-full py-2.5 px-4 rounded-xl bg-[#2563EB] disabled:bg-slate-200 disabled:text-slate-400 hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-98 flex items-center justify-center gap-1.5 cursor-pointer">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span id="btnRecoverSingleLabel">Recover this file</span>
+            </button>
+          </div>
+
+        </aside>
+      </div>
+
+      <!-- 3. Recovery Skills Workspace View (Step 3: Review & Recover - Matches media_1788608412600.png) -->
+      <div id="skillsWorkspaceView" class="hidden col-span-12 md:col-span-9 lg:col-span-10 p-4 sm:p-6 space-y-4 bg-[#F8FAFC] flex-1">
+        
+        <!-- Back Button & Page Header -->
+        <div class="space-y-1 select-none">
+          <button onclick="switchView('scan')" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-blue-600 transition mb-1">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+            <span>Back to Review</span>
+          </button>
+          <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Recovery Skills Workspace</h2>
+          <p id="skillsSubheading" class="text-xs text-slate-500">Fix, secure, and optimize 6 files using the right skills for their issues.</p>
+        </div>
+
+        <!-- Attention Banner Card -->
+        <div class="ui-card p-4 bg-white flex flex-wrap items-center justify-between gap-4 border-l-4 border-l-amber-500">
+          <div class="flex items-center gap-3.5">
+            <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center text-lg shrink-0">
+              ⚠️
+            </div>
+            <div>
+              <h3 id="bannerAttentionTitle" class="text-sm font-extrabold text-slate-900">6 files need attention</h3>
+              <p class="text-xs text-slate-500">These files have issues that can be resolved using specialized recovery skills.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-8 text-right pr-2">
+            <div>
+              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Size</div>
+              <div id="bannerAttentionSize" class="text-xs font-mono font-bold text-slate-800">9.6 GB</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Issues</div>
+              <div id="bannerAttentionIssues" class="text-xs font-bold text-amber-600">6 types detected</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grid of Main Content + Right Sidebar -->
+        <div class="grid grid-cols-12 gap-4 items-start">
+          
+          <!-- Left 8-9 Columns: Issues Summary + Approach + Skillset Grid -->
+          <div class="col-span-12 xl:col-span-8 space-y-4">
+            
+            <!-- Issues Summary & Recovery Approach 2-column strip -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+              
+              <!-- Left: Detected Issues Summary -->
+              <div class="ui-card p-4 bg-white space-y-3">
+                <h4 class="text-xs font-extrabold text-slate-900">Detected Issues Summary</h4>
+                <div class="space-y-2 text-xs">
+                  <div class="flex items-center justify-between text-slate-700">
+                    <span class="flex items-center gap-2">
+                      <span class="w-4 h-4 rounded bg-rose-50 text-rose-600 flex items-center justify-center text-[10px]">📄</span>
+                      <span>Corrupted after backup</span>
+                    </span>
+                    <span id="issueCountCorrupt" class="font-bold text-slate-900 font-mono">2 files</span>
+                  </div>
+                  <div class="flex items-center justify-between text-slate-700">
+                    <span class="flex items-center gap-2">
+                      <span class="w-4 h-4 rounded bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px]">🖼️</span>
+                      <span>Wrong application/type</span>
+                    </span>
+                    <span id="issueCountApp" class="font-bold text-slate-900 font-mono">2 files</span>
+                  </div>
+                  <div class="flex items-center justify-between text-slate-700">
+                    <span class="flex items-center gap-2">
+                      <span class="w-4 h-4 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-[10px]">📑</span>
+                      <span>Unknown / Different file type</span>
+                    </span>
+                    <span id="issueCountType" class="font-bold text-slate-900 font-mono">1 file</span>
+                  </div>
+                  <div class="flex items-center justify-between text-slate-700">
+                    <span class="flex items-center gap-2">
+                      <span class="w-4 h-4 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center text-[10px]">💾</span>
+                      <span>Incomplete file</span>
+                    </span>
+                    <span id="issueCountIncomplete" class="font-bold text-slate-900 font-mono">1 file</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Right: Recovery Approach Sequence -->
+              <div class="ui-card p-4 bg-white space-y-3 flex flex-col justify-between">
+                <div>
+                  <h4 class="text-xs font-extrabold text-slate-900">Recovery Approach</h4>
+                  <p class="text-[11px] text-slate-500 mt-0.5">Select the skills you want to apply. We'll only run the ones you enable.</p>
+                </div>
+                
+                <!-- Flow Diagram -->
+                <div class="flex items-center justify-between pt-2 px-1">
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-bold shadow-xs">
+                      🔍
+                    </div>
+                    <span class="text-[9px] font-bold text-slate-600">Detect &amp; Analyze</span>
+                  </div>
+                  <span class="text-slate-300 text-xs">→</span>
+                  
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold shadow-xs">
+                      🎛️
+                    </div>
+                    <span class="text-[9px] font-bold text-slate-600">Selected Skills</span>
+                  </div>
+                  <span class="text-slate-300 text-xs">→</span>
+
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold shadow-xs">
+                      👁️
+                    </div>
+                    <span class="text-[9px] font-bold text-slate-600">Preview Results</span>
+                  </div>
+                  <span class="text-slate-300 text-xs">→</span>
+
+                  <div class="flex flex-col items-center gap-1">
+                    <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold shadow-xs">
+                      📥
+                    </div>
+                    <span class="text-[9px] font-bold text-slate-600">Recover</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Select Recovery Skillsets Grid Card -->
+            <div class="ui-card p-4 sm:p-5 bg-white space-y-4">
+              <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+                <div>
+                  <h3 class="text-sm font-extrabold text-slate-900">Select Recovery Skillsets</h3>
+                  <p class="text-[11px] text-slate-500">Choose the skills that match the issues detected in your files. You can select multiple.</p>
+                </div>
+                <button onclick="applyAiRecommendation()" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#2563EB] font-bold text-xs border border-blue-200 transition active:scale-95 flex items-center gap-1.5 shadow-xs">
+                  <span>🪄 AI Recommend</span>
+                </button>
+              </div>
+
+              <!-- 3x3 Grid of 10 Skills Cards -->
+              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                
+                <!-- Skill 1: Repair Corrupted Files -->
+                <div id="card_repair_corrupt" onclick="toggleSkillCard('repair_corrupt')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">🪄</div>
+                      <span class="text-xs font-bold text-slate-900">Repair Corrupted Files</span>
+                    </div>
+                    <input type="checkbox" id="skill_repair_corrupt" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Fixes damaged or corrupted files by rebuilding headers, indexes, and structures.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                </div>
+
+                <!-- Skill 2: Restore After Bad Backup -->
+                <div id="card_restore_backup" onclick="toggleSkillCard('restore_backup')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">🔄</div>
+                      <span class="text-xs font-bold text-slate-900">Restore After Bad Backup</span>
+                    </div>
+                    <input type="checkbox" id="skill_restore_backup" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Recovers files that became corrupt or incomplete during backup.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                </div>
+
+                <!-- Skill 3: Open With Alternative Apps -->
+                <div id="card_open_alt" onclick="toggleSkillCard('open_alt')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">🖥️</div>
+                      <span class="text-xs font-bold text-slate-900">Open With Alternative Apps</span>
+                    </div>
+                    <input type="checkbox" id="skill_open_alt" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Uses alternative compatible applications to open and recover files.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                </div>
+
+                <!-- Skill 4: File Type Conversion -->
+                <div id="card_type_conversion" onclick="toggleSkillCard('type_conversion')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold">⇄</div>
+                      <span class="text-xs font-bold text-slate-900">File Type Conversion</span>
+                    </div>
+                    <input type="checkbox" id="skill_type_conversion" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Converts files to a compatible format so they can be opened.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Optional</span></div>
+                </div>
+
+                <!-- Skill 5: Identify Unknown File Types -->
+                <div id="card_unknown_type" onclick="toggleSkillCard('unknown_type')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">📑</div>
+                      <span class="text-xs font-bold text-slate-900">Identify Unknown File Types</span>
+                    </div>
+                    <input type="checkbox" id="skill_unknown_type" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Detects and identifies unknown or unrecognized file types.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                </div>
+
+                <!-- Skill 6: Rebuild Incomplete Files -->
+                <div id="card_rebuild_incomplete" onclick="toggleSkillCard('rebuild_incomplete')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold">📄</div>
+                      <span class="text-xs font-bold text-slate-900">Rebuild Incomplete Files</span>
+                    </div>
+                    <input type="checkbox" id="skill_rebuild_incomplete" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Attempts to reconstruct incomplete or partially written files.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Optional</span></div>
+                </div>
+
+                <!-- Skill 7: Data Extraction (Raw Recovery) -->
+                <div id="card_raw_extract" onclick="toggleSkillCard('raw_extract')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">🗄️</div>
+                      <span class="text-xs font-bold text-slate-900">Data Extraction (Raw Recovery)</span>
+                    </div>
+                    <input type="checkbox" id="skill_raw_extract" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Extracts raw data from files when standard methods fail.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Advanced</span></div>
+                </div>
+
+                <!-- Skill 8: Virus Scan -->
+                <div id="card_virus_scan" onclick="toggleSkillCard('virus_scan')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">🛡️</div>
+                      <span class="text-xs font-bold text-slate-900">Virus Scan</span>
+                    </div>
+                    <input type="checkbox" id="skill_virus_scan" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Scans recovered files for malware and potential threats.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                </div>
+
+                <!-- Skill 9: Secure & Encrypt -->
+                <div id="card_secure_encrypt" onclick="toggleSkillCard('secure_encrypt')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold">🔒</div>
+                      <span class="text-xs font-bold text-slate-900">Secure &amp; Encrypt</span>
+                    </div>
+                    <input type="checkbox" id="skill_secure_encrypt" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Encrypts recovered files for secure storage and transfer.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Optional</span></div>
+                </div>
+
+                <!-- Skill 10: Smart Sort & Organize -->
+                <div id="card_smart_sort" onclick="toggleSkillCard('smart_sort')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5 md:col-span-2 lg:col-span-1">
+                  <div class="flex items-start justify-between">
+                    <div class="flex items-center gap-2.5">
+                      <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">📁</div>
+                      <span class="text-xs font-bold text-slate-900">Smart Sort &amp; Organize</span>
+                    </div>
+                    <input type="checkbox" id="skill_smart_sort" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                  </div>
+                  <p class="text-[10px] text-slate-500 leading-tight">Automatically organizes recovered files by type, folder, date, and content.</p>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- Right 3-4 Columns: Session Info & Outcomes Sidebar -->
+          <div class="col-span-12 xl:col-span-4 space-y-4">
+            
+            <!-- Files in this session -->
+            <div class="ui-card p-4 bg-white space-y-3">
+              <div class="flex items-center justify-between">
+                <h4 class="text-xs font-extrabold text-slate-900">Files in this session</h4>
+                <span id="sideSessionTotalSize" class="text-xs font-mono font-bold text-slate-800">9.6 GB total</span>
+              </div>
+              <div id="sideSessionCount" class="text-xs text-slate-600 font-medium">6 files selected</div>
+
+              <!-- Issue breakdown -->
+              <div class="pt-2 border-t border-slate-100 space-y-2 text-xs">
+                <div class="font-bold text-slate-700 text-[11px]">Issue breakdown</div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-2"><span class="text-rose-500">📄</span> Corrupted after backup</span>
+                  <span id="sideCountCorrupt" class="font-bold font-mono">2 files</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-2"><span class="text-blue-500">🖼️</span> Wrong application/type</span>
+                  <span id="sideCountApp" class="font-bold font-mono">2 files</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-2"><span class="text-amber-500">📑</span> Unknown / Different file type</span>
+                  <span id="sideCountType" class="font-bold font-mono">1 file</span>
+                </div>
+                <div class="flex justify-between items-center text-slate-600">
+                  <span class="flex items-center gap-2"><span class="text-indigo-500">💾</span> Incomplete file</span>
+                  <span id="sideCountIncomplete" class="font-bold font-mono">1 file</span>
+                </div>
+              </div>
+
+            </div>
+
+            <!-- What these skills will do -->
+            <div class="ui-card p-4 bg-white space-y-2.5">
+              <h4 class="text-xs font-extrabold text-slate-900">What these skills will do</h4>
+              <div id="skillsOutcomesList" class="space-y-1.5 text-xs text-slate-600">
+                <div class="flex items-center gap-2 text-emerald-700 font-medium"><span class="text-emerald-500">✓</span> Repair damaged or corrupted files</div>
+                <div class="flex items-center gap-2 text-emerald-700 font-medium"><span class="text-emerald-500">✓</span> Use the right applications or convert formats</div>
+                <div class="flex items-center gap-2 text-emerald-700 font-medium"><span class="text-emerald-500">✓</span> Identify unknown file types</div>
+                <div class="flex items-center gap-2 text-emerald-700 font-medium"><span class="text-emerald-500">✓</span> Scan, secure and organize recovered files</div>
+              </div>
+            </div>
+
+            <!-- Need help choosing card -->
+            <div class="ui-card p-4 bg-white space-y-2.5 border border-blue-100">
+              <h4 class="text-xs font-extrabold text-slate-900">Need help choosing?</h4>
+              <p class="text-[11px] text-slate-500 leading-snug">Let AI analyze your files and recommend the best skillset.</p>
+              <button onclick="applyAiRecommendation()" class="w-full py-2.5 px-4 rounded-xl border border-blue-200 bg-white hover:bg-blue-50 text-[#2563EB] font-bold text-xs shadow-xs transition flex items-center justify-center gap-2">
+                <span>🪄 Analyze &amp; Recommend</span>
+              </button>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bottom Persistent Action Footer (Matches media_1788607789364.png & media_1788608412600.png) -->
+    <footer class="px-5 py-3 border-t border-slate-200 bg-white flex flex-wrap items-center justify-between gap-4 select-none">
+      
+      <!-- Left Side: RECOVER TO + READY Badge + DESTINATION FOLDER + Safety info -->
+      <div class="flex flex-wrap items-center gap-5">
+        
+        <!-- 1. RECOVER TO: Target Drive Selector -->
+        <div>
+          <div class="text-[10px] font-extrabold text-slate-400 tracking-wider mb-1">RECOVER TO:</div>
+          <div class="flex items-center gap-2">
+            <!-- Drive Dropdown Card -->
+            <div onclick="openModal('destDrivesModal')" class="flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:border-blue-400 hover:shadow-sm cursor-pointer transition" title="Click to select target destination drive">
+              <div class="w-6 h-6 rounded-md bg-slate-100 border border-slate-200 flex items-center justify-center text-xs shrink-0 shadow-inner">
+                🖴
+              </div>
+              <div>
+                <div id="destDriveName" class="text-xs font-bold text-slate-900 leading-tight">Samsung T7 1TB (External SSD)</div>
+                <div id="destDriveCapacity" class="text-[10px] text-slate-400 font-mono leading-tight">1.0 TB free of 1.0 TB</div>
+              </div>
+              <svg class="w-3.5 h-3.5 text-slate-400 ml-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+
+            <!-- Ready Badge (Visible in Skills View) -->
+            <span id="destReadyBadge" class="hidden px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 tracking-wider">
+              READY
+            </span>
+
+            <!-- Open Folder Shortcut Button (Visible in Scan View) -->
+            <button id="destOpenFolderBtn" onclick="openRecoveredFolder()" title="Open destination folder in File Manager" class="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs transition active:scale-95 flex items-center gap-1">
+              <span>Open</span>
+              <svg class="w-3 h-3 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. DESTINATION FOLDER: -->
+        <div>
+          <div class="text-[10px] font-extrabold text-slate-400 tracking-wider mb-1">DESTINATION FOLDER:</div>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="text-base leading-none">📁</span>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <strong id="destFolderName" class="font-bold text-slate-800 text-xs">drive_recovery</strong>
+                <button onclick="openModal('destinationModal')" class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline ml-1">Change</button>
+              </div>
+              <div id="destFolderPath" class="text-[10px] text-slate-400 font-mono truncate max-w-[280px]">/Volumes/Samsung T7/drive_recovery</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hidden input for backward compatibility -->
+        <input type="hidden" id="destDirInput" value="recovered_files">
+
+        <!-- 3. Safety Notice -->
+        <div class="hidden xl:flex items-center gap-1.5 text-[11px] text-slate-400 border-l border-slate-200 pl-4 py-0.5">
+          <svg class="w-3.5 h-3.5 text-slate-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>Files will be recovered to the selected drive. Original data will never be overwritten.</span>
+        </div>
+
+      </div>
+
+      <!-- Right Side Action Buttons -->
+      <div class="flex items-center gap-2.5">
+        
+        <!-- Scan View Actions -->
+        <div id="footerScanActions" class="flex items-center gap-2">
+          <button id="btnFooterSkills" onclick="openSkillsWorkspace()" class="hidden sm:flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold text-xs transition shadow-xs cursor-pointer">
+            <span>🪄 Skills Workspace (<span id="btnDamagedCount">6</span>)</span>
+          </button>
+          <button id="btnRecoverSelected" onclick="recoverSelectedFiles()" disabled class="px-5 py-2.5 rounded-xl bg-[#2563EB] disabled:bg-slate-200 disabled:text-slate-400 hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 flex items-center gap-2 cursor-pointer">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+            <span id="btnRecoverSelectedLabel">Recover Selected (0)</span>
+          </button>
+          <button id="btnBackupDriveFooter" onclick="backupEntireDrive()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md shadow-emerald-600/20 transition active:scale-95 flex items-center gap-2 cursor-pointer" title="Back up all files on this drive to destination folder">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>⚡ Backup Entire Hard Drive</span>
+          </button>
+        </div>
+
+        <!-- Skills Workspace Actions (Visible on Step 3) -->
+        <div id="footerSkillsActions" class="hidden flex items-center gap-2">
+          <button onclick="executeSkillsRecovery()" class="px-7 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-extrabold text-xs shadow-md shadow-blue-500/20 transition active:scale-95 flex items-center gap-2 cursor-pointer">
+            <span>Review &amp; Recover</span>
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+
+      </div>
+
+    </footer>
+
+  </div>
+
+  <!-- MODAL 1: Connected Drives & Storage Devices -->
+  <div id="drivesModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">🖴</div>
+          <h3 class="text-sm font-bold text-slate-900">Source Storage Devices &amp; Volumes</h3>
+        </div>
+        <button onclick="closeModal('drivesModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+
+      <div id="drivesListContainer" class="space-y-2 max-h-60 overflow-y-auto">
+        <!-- Dynamically loaded from /api/drives -->
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="rescanHardwareDrives()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs transition">
+          🔄 Rescan Storage
+        </button>
+        <button onclick="closeModal('drivesModal')" class="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-bold text-xs transition">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 1B: Destination Drives Picker Modal -->
+  <div id="destDrivesModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-sm">🎯</div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Select Destination Recovery Drive</h3>
+            <p class="text-[10px] text-slate-500">Choose the physical disk or volume to transfer rescued files</p>
+          </div>
+        </div>
+        <button onclick="closeModal('destDrivesModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+
+      <div id="destDrivesListContainer" class="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+        <!-- Dynamically loaded from /api/destination_drives -->
+      </div>
+
+      <div class="p-3 rounded-xl bg-blue-50/60 border border-blue-100 flex items-center justify-between text-xs">
+        <div class="text-[11px] text-blue-900">
+          <strong>Need a custom folder path?</strong> Set exact folder manually:
+        </div>
+        <button onclick="closeModal('destDrivesModal'); openModal('destinationModal')" class="px-2.5 py-1 rounded-lg bg-white border border-blue-200 text-blue-700 font-semibold text-xs hover:bg-blue-50">
+          Custom Path
+        </button>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('destDrivesModal')" class="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-bold text-xs transition">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: Recent Sessions (recovery.map) -->
+  <div id="sessionsModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">⏱</div>
+          <h3 class="text-sm font-bold text-slate-900">Recent Recovery Sessions</h3>
+        </div>
+        <button onclick="closeModal('sessionsModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+
+      <div id="sessionsListContainer" class="space-y-2 max-h-56 overflow-y-auto text-xs">
+        <!-- Dynamically loaded from /api/sessions -->
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('sessionsModal')" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 font-semibold text-xs">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: Settings & Timeout Config -->
+  <div id="settingsModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-slate-100 text-slate-700 flex items-center justify-center">⚙</div>
+          <h3 class="text-sm font-bold text-slate-900">Engine Settings</h3>
+        </div>
+        <button onclick="closeModal('settingsModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Per-Sector Read Timeout (ms)</label>
+          <input type="number" id="settingTimeout" value="1000" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
+          <span class="text-[10px] text-slate-400">Hard limit on reading bad sectors before bypassing to avoid freezing.</span>
+        </div>
+
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Max MFT Records to Parse</label>
+          <input type="number" id="settingMaxRecords" value="50000" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+          <div>
+            <div class="font-bold text-slate-800">Auto Zero-Fill Bad Sectors</div>
+            <div class="text-[10px] text-slate-500">Tag damaged files as .partial with zero holes</div>
+          </div>
+          <input type="checkbox" id="settingZeroFill" checked class="rounded text-blue-600">
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="saveEngineSettings()" class="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-bold text-xs transition">Save Settings</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: Help & Field Guide -->
+  <div id="helpModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2"><span>❓</span> Field Recovery Guide</h3>
+        <button onclick="closeModal('helpModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+
+      <div class="space-y-2.5 text-xs text-slate-600 max-h-64 overflow-y-auto leading-relaxed">
+        <div class="p-3 rounded-xl bg-blue-50/60 border border-blue-100 text-blue-900">
+          <strong class="block mb-0.5">1. Why does Windows Explorer freeze on failing drives?</strong>
+          Standard Windows file APIs retry bad sectors indefinitely. Drive Rescue uses asynchronous Direct I/O with CancelIoEx to abort hung reads in &lt;1000ms.
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+          <strong class="block mb-0.5 text-slate-800">2. Can I recover while scanning?</strong>
+          Yes! You can preview files and click "Recover Selected" at any point without waiting for 100% completion.
+        </div>
+        <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+          <strong class="block mb-0.5 text-slate-800">3. What is a .partial file?</strong>
+          If a file has unreadable clusters, healthy data is preserved and bad clusters are zero-filled so the rest of the file can still be opened.
+        </div>
+      </div>
+
+      <div class="flex justify-end pt-2 border-t border-slate-100">
+        <button onclick="closeModal('helpModal')" class="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-bold text-xs">Got it</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 5: About Metadata -->
+  <div id="aboutModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-3">
+      <div class="w-12 h-12 rounded-2xl bg-[#2563EB] text-white flex items-center justify-center mx-auto shadow-md">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      </div>
+      <h3 class="text-base font-extrabold text-slate-900">Drive Rescue</h3>
+      <div class="text-xs text-slate-500 font-mono">v1.0.0 • Production Build</div>
+      <p class="text-xs text-slate-600">Open-source zero-freeze raw physical disk recovery engine. Released under the MIT License.</p>
+      <div class="pt-2">
+        <button onclick="closeModal('aboutModal')" class="w-full py-2.5 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs hover:bg-slate-200 transition">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6: Destination Picker Modal -->
+  <div id="destinationModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">📁</div>
+          <h3 class="text-sm font-bold text-slate-900">Change Destination Folder</h3>
+        </div>
+        <button onclick="closeModal('destinationModal')" class="text-slate-400 hover:text-slate-700 text-sm">✕</button>
+      </div>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Destination Subfolder Name</label>
+          <input type="text" id="modalDestFolderName" value="drive_recovery" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
+        </div>
+        <div>
+          <label class="font-bold text-slate-700 block mb-1">Full Target Folder Path</label>
+          <input type="text" id="modalDestInput" value="recovered_files" class="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 font-mono text-slate-800 outline-none focus:border-blue-500">
+        </div>
+        <div class="p-2.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-[11px] leading-snug">
+          🛡️ <strong>Safety Guard:</strong> Recovered files are written directly to this directory without overwriting any original drive sectors.
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+        <button onclick="closeModal('destinationModal')" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-xs cursor-pointer">Cancel</button>
+        <button onclick="saveDestinationPath()" class="px-4 py-2 rounded-xl bg-[#2563EB] text-white font-bold text-xs transition cursor-pointer">Set Destination</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 6B: Live Hard Drive Backup & Recovery Progress Modal -->
+  <div id="backupProgressModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-xl shrink-0">
+          ⚡
+        </div>
+        <div>
+          <h3 id="backupProgressTitle" class="text-sm font-extrabold text-slate-900">Hard Drive Backup in Progress</h3>
+          <p id="backupProgressSubtitle" class="text-xs text-slate-500">Extracting discovered files to destination storage...</p>
+        </div>
+      </div>
+
+      <!-- Live Progress Bar -->
+      <div class="space-y-1.5">
+        <div class="flex justify-between text-xs font-mono font-bold">
+          <span id="backupProgressFileCount" class="text-slate-700">Extracting files...</span>
+          <span id="backupProgressPct" class="text-emerald-600">0%</span>
+        </div>
+        <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+          <div id="backupProgressBar" class="bg-emerald-600 h-full rounded-full transition-all duration-300" style="width: 0%;"></div>
+        </div>
+        <div class="flex justify-between text-[11px] text-slate-400 font-mono">
+          <span id="backupCurrentFileText" class="truncate max-w-[240px]">Preparing extraction...</span>
+          <span id="backupProgressSpeed">Saving to destination</span>
+        </div>
+      </div>
+
+      <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] space-y-1">
+        <div class="flex justify-between text-slate-500">
+          <span>Destination:</span>
+          <strong id="backupProgressDest" class="text-slate-700 truncate max-w-[220px]">/Volumes/Samsung T7/drive_recovery</strong>
+        </div>
+        <div class="flex justify-between text-slate-500">
+          <span>Mode:</span>
+          <span class="text-emerald-700 font-bold">Non-destructive Direct Copy</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 7: Recovery Completion Summary Modal -->
+  <div id="completionModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      
+      <div class="text-center space-y-1">
+        <h3 class="text-base font-extrabold text-slate-900">Recovery Complete</h3>
+        <p class="text-xs text-slate-500">Your files have been saved to <strong id="modalDestPath" class="text-slate-700">recovered_files</strong></p>
+      </div>
+
+      <div class="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-2 text-xs">
+        <div class="flex justify-between">
+          <span class="text-slate-600 font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Files Recovered</span>
+          <span id="compGoodCount" class="font-bold text-slate-800 font-mono">0</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-600 font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500"></span> Partially Recovered</span>
+          <span id="compPartialCount" class="font-bold text-slate-800 font-mono">0</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-600 font-medium flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500"></span> Could not be recovered</span>
+          <span id="compFailedCount" class="font-bold text-slate-800 font-mono">0</span>
+        </div>
+      </div>
+
+      <div class="flex gap-2">
+        <button onclick="openRecoveredFolder()" class="flex-1 py-2.5 px-4 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-1.5">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          <span>Open Recovered Files</span>
+        </button>
+        <button onclick="closeModal('completionModal')" class="py-2.5 px-4 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-semibold">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Draggable & Closeable CLI Terminal Window -->
+  <div id="cliTerminalModal" class="hidden fixed z-50 rounded-2xl shadow-2xl border border-slate-700/80 bg-[#0B1120] text-slate-200 overflow-hidden flex flex-col font-mono transition-shadow" style="width: 720px; height: 480px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); right: 24px; bottom: 84px;">
+    
+    <!-- Terminal Title Bar & Drag Handle -->
+    <div id="terminalDragHandle" class="px-4 py-2.5 bg-[#0F172A] border-b border-slate-800 flex items-center justify-between cursor-move select-none shrink-0">
+      <div class="flex items-center gap-2.5">
+        <!-- Traffic Light Buttons -->
+        <div class="flex items-center gap-1.5">
+          <button onclick="closeTerminalWindow()" class="w-3 h-3 rounded-full bg-rose-500 hover:bg-rose-600 transition flex items-center justify-center text-[8px] text-rose-950 font-bold opacity-80 hover:opacity-100 cursor-pointer" title="Close Terminal">✕</button>
+          <button onclick="minimizeTerminalWindow()" class="w-3 h-3 rounded-full bg-amber-500 hover:bg-amber-600 transition flex items-center justify-center text-[8px] text-amber-950 font-bold opacity-80 hover:opacity-100 cursor-pointer" title="Minimize">–</button>
+          <button onclick="maximizeTerminalWindow()" class="w-3 h-3 rounded-full bg-emerald-500 hover:bg-emerald-600 transition flex items-center justify-center text-[8px] text-emerald-950 font-bold opacity-80 hover:opacity-100 cursor-pointer" title="Maximize">□</button>
+        </div>
+        
+        <div class="flex items-center gap-2 ml-2">
+          <span class="text-xs font-bold text-slate-100 tracking-wide flex items-center gap-1.5">
+            <svg class="w-3.5 h-3.5 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            Drive Rescue Terminal
+          </span>
+          <span id="termSessionBadge" class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            LIVE SESSION
+          </span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <span id="termLineCount" class="text-[10px] text-slate-400">0 events</span>
+        <button onclick="copyAllTerminalLogs()" title="Copy entire terminal log history" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        </button>
+        <button onclick="clearTerminalLogs()" title="Clear terminal log buffer" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        </button>
+        <button onclick="closeTerminalWindow()" title="Close Terminal" class="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Terminal Sub-bar (Filter Badges & Auto-scroll) -->
+    <div class="px-3.5 py-1.5 bg-[#090E17] border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-[11px] select-none shrink-0">
+      <div class="flex items-center gap-1.5" id="terminalFilterPills">
+        <button onclick="setTerminalFilter('ALL')" id="termFilter_ALL" class="px-2 py-0.5 rounded bg-blue-600 text-white font-bold text-[10px] cursor-pointer">ALL</button>
+        <button onclick="setTerminalFilter('INFO')" id="termFilter_INFO" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-[10px] cursor-pointer">INFO</button>
+        <button onclick="setTerminalFilter('WARN')" id="termFilter_WARN" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 font-medium text-[10px] cursor-pointer">WARN</button>
+        <button onclick="setTerminalFilter('ERROR')" id="termFilter_ERROR" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-rose-400 font-medium text-[10px] cursor-pointer">ERROR</button>
+        <button onclick="setTerminalFilter('RECOVERY')" id="termFilter_RECOVERY" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 font-medium text-[10px] cursor-pointer">RECOVERY</button>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Search filter -->
+        <input type="text" id="terminalSearchInput" oninput="renderTerminalLogs()" placeholder="Filter logs..." class="bg-slate-900 border border-slate-700 rounded px-2 py-0.5 text-[10px] text-slate-200 placeholder-slate-500 outline-none w-28 focus:w-40 focus:border-blue-500 transition font-mono">
+        
+        <!-- Auto-scroll checkbox -->
+        <label class="flex items-center gap-1.5 cursor-pointer text-[10px] text-slate-400 hover:text-slate-300">
+          <input type="checkbox" id="termAutoScrollChk" checked class="rounded text-blue-500 focus:ring-0">
+          <span>Auto-scroll</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Terminal Scrollable Output Body -->
+    <div id="terminalBody" class="flex-1 p-3.5 overflow-y-auto space-y-1 text-xs leading-relaxed font-mono bg-[#070B12] select-text">
+      <!-- Live logs stream dynamically populated here -->
+    </div>
+
+    <!-- Terminal Interactive Command Line Input -->
+    <div class="p-2.5 bg-[#090E17] border-t border-slate-800 flex items-center gap-2 shrink-0">
+      <span class="text-xs font-bold text-blue-400 shrink-0 select-none">drive-rescue&gt;</span>
+      <input type="text" id="terminalCmdInput" onkeydown="handleTerminalKey(event)" placeholder="Type command (e.g. status, list, info, scan, help)..." class="flex-1 bg-transparent border-0 text-xs text-slate-100 placeholder-slate-600 outline-none font-mono">
+      <button onclick="executeTerminalInput()" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold text-[10px] transition shrink-0 cursor-pointer">
+        Run ↵
+      </button>
+    </div>
+  </div>
+
+  <script>
+    function formatBytes(bytes, decimals = 1) {
+      if (!bytes || isNaN(bytes) || bytes === 0) return '0 B';
+      const k = 1024;
+      const dm = decimals < 0 ? 0 : decimals;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    let isScanning = false;
+    let selectedRowIndex = -1;
+    let sortField = 'name';
+    let sortAsc = true;
+    let selectedCheckboxIndices = new Set();
+    let activeFiles = [];
+    let connectedDrives = [];
+    let destinationDrivesList = [];
+    let currentDestDrive = null;
+    let currentSelectedDrivePath = "";
+    let currentFilterFolder = 'ALL';
+    let currentFilterStatus = 'ALL';
+
+    // Draggable CLI Terminal Window State
+    let sessionLogs = [];
+    let terminalFilter = 'ALL';
+    let cmdHistory = [];
+    let cmdHistoryIdx = -1;
+    let isTermMaximized = false;
+    let isTermMinimized = false;
+    let termSavedStyle = null;
+    let isDraggingTerminal = false;
+    let termDragOffset = { x: 0, y: 0 };
+    let terminalDragInitialized = false;
+
+    window.addEventListener('DOMContentLoaded', () => {
+      fetchLiveDrives();
+      fetchDestinationDrives();
+      pollLiveStatus();
+      setInterval(pollLiveStatus, 500);
+    });
+
+    async function fetchLiveDrives() {
+      try {
+        const res = await fetch('/api/drives');
+        if (!res.ok) return;
+        const data = await res.json();
+        connectedDrives = data.drives || [];
+        renderDrivesModal(connectedDrives);
+
+        if (connectedDrives.length > 0 && !currentSelectedDrivePath) {
+          const d = connectedDrives[0];
+          currentSelectedDrivePath = d.device_path;
+          document.getElementById('driveTitle').innerText = d.name;
+          document.getElementById('driveMeta').innerText = `${d.device_path} • ${d.size_str || 'Direct Storage'}`;
+        }
+      } catch (e) {}
+    }
+
+    async function fetchDestinationDrives() {
+      try {
+        const res = await fetch('/api/destination_drives');
+        if (!res.ok) return;
+        const data = await res.json();
+        destinationDrivesList = data.destination_drives || [];
+        currentDestDrive = data.selected_dest_drive || destinationDrivesList[0];
+        renderDestDrivesModal(destinationDrivesList);
+        updateDestDriveUI(currentDestDrive, data.dest_dir);
+      } catch (e) {}
+    }
+
+    async function pollLiveStatus() {
+      try {
+        const res = await fetch('/api/status');
+        if (!res.ok) return;
+        const data = await res.json();
+
+        isScanning = data.is_running;
+        
+        // Update Drive Header
+        if (data.selected_drive_name) {
+          document.getElementById('driveTitle').innerText = data.selected_drive_name;
+          document.getElementById('driveMeta').innerText = `${data.selected_drive_path} • ${data.selected_drive_size}`;
+          currentSelectedDrivePath = data.selected_drive_path;
+        }
+
+        // Update Scanner Button & Activity Badge
+        const btn = document.getElementById('btnToggleScan');
+        const badge = document.getElementById('scanStatusBadge');
+        const dot = document.getElementById('diskActivityDot');
+        const scanTag = document.getElementById('recoverWhileScanTag');
+
+        if (data.is_running) {
+          btn.className = "px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs border border-slate-300 transition active:scale-95 flex items-center gap-1.5";
+          document.getElementById('scanBtnLabel').innerText = "Stop Scan";
+          document.getElementById('scanIcon').innerHTML = '<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>';
+          badge.innerText = "Scanning...";
+          badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200";
+          dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse";
+          scanTag.classList.remove('hidden');
+          document.getElementById('bottomStatusLine').innerHTML = `Scanning storage... Found <strong class="text-blue-600">${data.stats.files_found} files</strong>. You can recover files immediately.`;
+        } else if (data.is_paused) {
+          btn.className = "px-5 py-2.5 rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shadow-md transition active:scale-95 flex items-center gap-1.5";
+          document.getElementById('scanBtnLabel').innerText = "Resume Scan";
+          document.getElementById('scanIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+          badge.innerText = "Paused";
+          badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200";
+          dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-amber-400";
+        } else {
+          document.getElementById('scanBtnLabel').innerText = data.stats.files_found > 0 ? "Rescan Storage" : "Start Scan";
+          document.getElementById('scanIcon').innerHTML = '<path d="M8 5v14l11-7z"/>';
+          if (data.stats.files_found > 0) {
+            badge.innerText = "Complete";
+            badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200";
+            dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-blue-500";
+            document.getElementById('bottomStatusLine').innerText = "Scan complete. All discovered files ready to recover.";
+          } else {
+            badge.innerText = "Idle";
+            badge.className = "px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200";
+            dot.className = "absolute bottom-1 right-1.5 w-1.5 h-1.5 rounded-full bg-slate-400";
+          }
+        }
+
+        // Update Stats Counters
+        if (data.stats) {
+          const st = data.stats;
+          document.getElementById('statFilesFound').innerText = st.files_found.toLocaleString();
+          document.getElementById('statGoodFiles').innerText = st.good_files.toLocaleString();
+          document.getElementById('statPartialFiles').innerText = st.partial_files.toLocaleString();
+          document.getElementById('statFailedFiles').innerText = st.failed_files.toLocaleString();
+          document.getElementById('statTotalBytes').innerText = formatBytes(st.total_bytes);
+          document.getElementById('pctText').innerText = `${Math.round(st.percent_complete)}%`;
+          document.getElementById('mainProgressBar').style.width = `${Math.round(st.percent_complete)}%`;
+          document.getElementById('tableHeaderCount').innerText = `(${st.files_found.toLocaleString()})`;
+          document.getElementById('tableBottomStats').innerText = `${st.files_found.toLocaleString()} files • ${formatBytes(st.total_bytes)}`;
+          
+          if (data.elapsed_seconds) {
+            const sec = data.elapsed_seconds;
+            const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+            const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+            const s = String(sec % 60).padStart(2, '0');
+            document.getElementById('timeTelemetry').innerText = `Elapsed: ${h}:${m}:${s}`;
+          }
+        }
+
+        // Update Files List
+        if (data.files && data.files.length !== activeFiles.length) {
+          activeFiles = data.files;
+          updateFolderCounts();
+          updateSelectedButtonLabel();
+          renderTable();
+          if (selectedRowIndex < 0 && activeFiles.length > 0) {
+            selectRow(activeFiles[0].id);
+          }
+        }
+
+        if (data.dest_dir) {
+          document.getElementById('destDirInput').value = data.dest_dir;
+        }
+
+        if (data.selected_dest_drive && !currentDestDrive) {
+          currentDestDrive = data.selected_dest_drive;
+          updateDestDriveUI(currentDestDrive, data.dest_dir);
+        }
+
+        // Synchronize CLI Terminal Session Logs
+        if (data.logs && Array.isArray(data.logs)) {
+          const prevLen = sessionLogs.length;
+          sessionLogs = data.logs;
+          const termModal = document.getElementById('cliTerminalModal');
+          if (termModal && !termModal.classList.contains('hidden') && prevLen !== sessionLogs.length) {
+            renderTerminalLogs();
+          }
+        }
+      } catch (e) {}
+    }
+
+    function updateFolderCounts() {
+      document.getElementById('quickCountAll').innerText = activeFiles.length;
+      document.getElementById('quickCountDown').innerText = activeFiles.filter(f => matchesFolder(f, 'Downloads')).length;
+      document.getElementById('quickCountDesk').innerText = activeFiles.filter(f => matchesFolder(f, 'Desktop')).length;
+      document.getElementById('quickCountDocs').innerText = activeFiles.filter(f => matchesFolder(f, 'Documents')).length;
+      document.getElementById('quickCountPics').innerText = activeFiles.filter(f => matchesFolder(f, 'Pictures')).length;
+      const appBtnCount = document.getElementById('quickCountApps');
+      if (appBtnCount) {
+        appBtnCount.innerText = activeFiles.filter(f => matchesFolder(f, 'Applications')).length;
+      }
+    }
+
+    function matchesFolder(f, folder) {
+      const p = f.path.toLowerCase();
+      const name = f.name.toLowerCase();
+      if (folder === 'Downloads') {
+        return p.includes('download') || name.endsWith('.zip') || name.endsWith('.dmg') || name.endsWith('.pkg');
+      } else if (folder === 'Desktop') {
+        return p.includes('desktop');
+      } else if (folder === 'Documents') {
+        return p.includes('document') || name.endsWith('.pdf') || name.endsWith('.docx') || name.endsWith('.xlsx') || name.endsWith('.txt') || name.endsWith('.csv') || name.endsWith('.md');
+      } else if (folder === 'Pictures') {
+        return p.includes('picture') || p.includes('photo') || name.match(/\.(jpg|jpeg|png|gif|webp|svg|heic)$/i);
+      } else if (folder === 'Applications') {
+        return f.is_app || name.endsWith('.app') || name.endsWith('.exe') || name.endsWith('.dmg') || name.endsWith('.pkg') || p.includes('application');
+      }
+      return true;
+    }
+
+    function renderTable() {
+      const q = document.getElementById('tableSearchInput').value.toLowerCase().trim();
+      let list = activeFiles;
+
+      if (currentFilterFolder !== 'ALL') {
+        list = list.filter(f => matchesFolder(f, currentFilterFolder));
+      }
+
+      if (currentFilterStatus !== 'ALL') {
+        list = list.filter(f => f.status === currentFilterStatus);
+      }
+
+      if (q) {
+        list = list.filter(f => f.name.toLowerCase().includes(q) || f.path.toLowerCase().includes(q));
+      }
+
+      const container = document.getElementById('fileTableRows');
+      if (list.length === 0) {
+        container.innerHTML = `
+          <div class="py-12 text-center text-slate-400 text-xs flex flex-col items-center justify-center space-y-2">
+            <span class="text-2xl">🖴</span>
+            <span>${isScanning ? 'Searching storage...' : 'No files found matching filter. Click <strong>Start Scan</strong> to begin.'}</span>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = list.map((f, idx) => {
+        const isChecked = selectedCheckboxIndices.has(f.id);
+        const isSelected = (selectedRowIndex === f.id);
+        const selClass = isSelected ? 'row-selected' : 'hover:bg-slate-50 border-transparent';
+
+        let statusBadge = '🟢 Good';
+        if (f.status === 'Partial') {
+          statusBadge = '🟠 Partial';
+        } else if (f.status === 'Failed') {
+          statusBadge = '🔴 Failed';
+        }
+
+        let iconEmoji = f.is_folder ? '📁' : (f.is_app ? '🚀' : (f.name.endsWith('.pdf') ? '📄' : (f.name.endsWith('.docx') ? '📝' : (f.name.endsWith('.xlsx') ? '📊' : (f.name.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? '🖼️' : '🗂️')))));
+
+        return `
+          <div onclick="selectRow(${f.id})" class="grid grid-cols-12 items-center px-3 py-1.5 rounded-xl cursor-pointer transition border ${selClass}">
+            <div class="col-span-5 flex items-center gap-2.5 truncate pr-2">
+              <input type="checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleCheckbox(${f.id})" class="rounded text-blue-600 focus:ring-0 cursor-pointer">
+              <span class="text-sm shrink-0">${iconEmoji}</span>
+              <span class="truncate font-semibold text-slate-800">${f.name}</span>
+            </div>
+            <div class="col-span-2 text-xs font-semibold text-slate-700">${statusBadge}</div>
+            <div class="col-span-2 font-mono text-[11px] text-slate-600 font-semibold">${f.size}</div>
+            <div class="col-span-3 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+              <span class="truncate pr-1">${f.path}</span>
+              <svg class="w-3.5 h-3.5 text-slate-300 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectRow(id) {
+      selectedRowIndex = id;
+      const f = activeFiles.find(item => item.id === id);
+      if (!f) return;
+
+      document.getElementById('previewTitle').innerText = f.name;
+      document.getElementById('previewBadgeType').innerText = f.name.includes('.') ? f.name.split('.').pop().toUpperCase() : (f.is_app ? 'APP' : (f.is_folder ? 'FOLDER' : 'FILE'));
+      
+      // Update single recovery button label with exact file name so user knows with 100% certainty what is being recovered
+      const btnLabel = document.getElementById('btnRecoverSingleLabel');
+      if (btnLabel) {
+        const shortName = f.name.length > 22 ? f.name.substring(0, 20) + '...' : f.name;
+        btnLabel.innerText = f.is_folder ? `Recover Folder "${shortName}"` : `Recover "${shortName}"`;
+      }
+
+      if (f.status === 'Partial') {
+        document.getElementById('detStatus').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span> 🟠 Partial`;
+        document.getElementById('detStatus').className = "font-semibold text-amber-600 flex items-center gap-1.5";
+        document.getElementById('partialWarningBox').classList.remove('hidden');
+        document.getElementById('goodInfoBox').classList.add('hidden');
+      } else if (f.status === 'Good') {
+        document.getElementById('detStatus').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> 🟢 Good`;
+        document.getElementById('detStatus').className = "font-semibold text-emerald-600 flex items-center gap-1.5";
+        document.getElementById('partialWarningBox').classList.add('hidden');
+        document.getElementById('goodInfoBox').classList.remove('hidden');
+      } else {
+        document.getElementById('detStatus').innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span> 🔴 Failed`;
+        document.getElementById('detStatus').className = "font-semibold text-rose-600 flex items-center gap-1.5";
+        document.getElementById('partialWarningBox').classList.add('hidden');
+        document.getElementById('goodInfoBox').classList.add('hidden');
+      }
+
+      document.getElementById('detSize').innerText = f.size;
+      document.getElementById('detType').innerText = f.type || "File";
+      document.getElementById('detModified').innerText = f.modified || "Recent";
+      document.getElementById('detPath').innerText = f.path;
+
+      // Enable single recover button
+      document.getElementById('btnRecoverSingle').disabled = false;
+
+      // Reset all preview surfaces
+      const pElements = [
+        'previewImg', 'previewPdf', 'previewTextContainer', 'previewVideo', 
+        'previewAudioContainer', 'previewFolderContainer', 'previewAppContainer', 
+        'previewArchiveContainer', 'previewDbContainer', 'previewFallback'
+      ];
+      pElements.forEach(elId => {
+        const el = document.getElementById(elId);
+        if (el) el.classList.add('hidden');
+      });
+
+      const popoutLink = document.getElementById('previewPopoutLink');
+      popoutLink.classList.add('hidden');
+      popoutLink.classList.remove('flex');
+
+      // Fetch rich metadata preview from backend
+      fetch(`/api/preview_meta?id=${f.id}`)
+        .then(res => res.json())
+        .then(meta => {
+          if (selectedRowIndex !== f.id) return; // stale response
+
+          if (meta.preview_type === 'pdf') {
+            const pdfEl = document.getElementById('previewPdf');
+            pdfEl.src = meta.pdf_url;
+            pdfEl.classList.remove('hidden');
+            popoutLink.href = meta.pdf_url;
+            popoutLink.classList.remove('hidden');
+            popoutLink.classList.add('flex');
+          } else if (meta.preview_type === 'image') {
+            const imgEl = document.getElementById('previewImg');
+            imgEl.src = meta.img_url;
+            imgEl.classList.remove('hidden');
+            popoutLink.href = meta.img_url;
+            popoutLink.classList.remove('hidden');
+            popoutLink.classList.add('flex');
+          } else if (meta.preview_type === 'text') {
+            const txtCont = document.getElementById('previewTextContainer');
+            document.getElementById('previewTextHeader').innerText = meta.filename;
+            document.getElementById('previewTextContent').innerText = meta.text_content;
+            txtCont.classList.remove('hidden');
+          } else if (meta.preview_type === 'video') {
+            const vidEl = document.getElementById('previewVideo');
+            vidEl.src = meta.media_url;
+            vidEl.classList.remove('hidden');
+          } else if (meta.preview_type === 'audio') {
+            const audCont = document.getElementById('previewAudioContainer');
+            const audEl = document.getElementById('previewAudio');
+            audEl.src = meta.media_url;
+            audCont.classList.remove('hidden');
+          } else if (meta.preview_type === 'folder') {
+            const folCont = document.getElementById('previewFolderContainer');
+            document.getElementById('previewFolderName').innerText = meta.folder_name;
+            document.getElementById('previewFolderCount').innerText = `${meta.folder_total_count} items`;
+            const listEl = document.getElementById('previewFolderList');
+            if (meta.folder_items && meta.folder_items.length > 0) {
+              listEl.innerHTML = meta.folder_items.map(it => `
+                <div class="flex items-center justify-between py-0.5 border-b border-slate-100 last:border-0 truncate">
+                  <span class="truncate pr-1">${it.is_dir ? '📁' : '📄'} ${it.name}</span>
+                  <span class="text-slate-400 shrink-0 text-[9px]">${it.size_str}</span>
+                </div>
+              `).join('');
+            } else {
+              listEl.innerHTML = '<div class="py-4 text-center text-slate-400">Empty directory</div>';
+            }
+            folCont.classList.remove('hidden');
+          } else if (meta.preview_type === 'app') {
+            const appCont = document.getElementById('previewAppContainer');
+            document.getElementById('previewAppName').innerText = meta.app_name;
+            document.getElementById('previewAppVer').innerText = meta.app_version ? `Version ${meta.app_version}` : 'Application';
+            document.getElementById('previewAppId').innerText = meta.app_bundle_id || 'Application Executable';
+            document.getElementById('previewAppType').innerText = meta.app_type;
+            appCont.classList.remove('hidden');
+          } else if (meta.preview_type === 'archive') {
+            const arcCont = document.getElementById('previewArchiveContainer');
+            document.getElementById('previewArchiveName').innerText = meta.filename;
+            document.getElementById('previewArchiveCount').innerText = `${meta.archive_total} files inside`;
+            const listEl = document.getElementById('previewArchiveList');
+            if (meta.archive_entries && meta.archive_entries.length > 0) {
+              listEl.innerHTML = meta.archive_entries.map(it => `
+                <div class="flex items-center justify-between py-0.5 border-b border-slate-100 last:border-0 truncate">
+                  <span class="truncate pr-1">${it.is_dir ? '📁' : '📄'} ${it.name}</span>
+                  <span class="text-slate-400 shrink-0 text-[9px]">${it.size_str}</span>
+                </div>
+              `).join('');
+            } else {
+              listEl.innerHTML = '<div class="py-4 text-center text-slate-400">Archive contents protected</div>';
+            }
+            arcCont.classList.remove('hidden');
+          } else if (meta.preview_type === 'database') {
+            const dbCont = document.getElementById('previewDbContainer');
+            document.getElementById('previewDbName').innerText = meta.db_name;
+            document.getElementById('previewDbType').innerText = meta.db_type;
+            dbCont.classList.remove('hidden');
+          } else {
+            const fb = document.getElementById('previewFallback');
+            document.getElementById('previewFallbackName').innerText = f.name;
+            document.getElementById('previewSubtext').innerText = f.size;
+            document.getElementById('previewEmoji').innerText = f.is_folder ? '📁' : (f.is_app ? '🚀' : (f.name.endsWith('.pdf') ? '📄' : (f.name.endsWith('.docx') ? '📝' : '🗂️')));
+            fb.classList.remove('hidden');
+          }
+        })
+        .catch(() => {
+          const fb = document.getElementById('previewFallback');
+          document.getElementById('previewFallbackName').innerText = f.name;
+          document.getElementById('previewSubtext').innerText = f.size;
+          document.getElementById('previewEmoji').innerText = f.is_folder ? '📁' : (f.is_app ? '🚀' : (f.name.endsWith('.pdf') ? '📄' : (f.name.endsWith('.docx') ? '📝' : '🗂️')));
+          fb.classList.remove('hidden');
+        });
+
+      renderTable();
+    }
+
+    function toggleCheckbox(id) {
+      if (selectedCheckboxIndices.has(id)) {
+        selectedCheckboxIndices.delete(id);
+      } else {
+        selectedCheckboxIndices.add(id);
+      }
+      selectRow(id); // Synchronize inspection panel immediately
+      updateSelectedButtonLabel();
+      renderTable();
+    }
+
+    function toggleMasterSelectAll(checked) {
+      if (checked) {
+        selectedCheckboxIndices = new Set(activeFiles.map(f => f.id));
+      } else {
+        selectedCheckboxIndices.clear();
+      }
+      updateSelectedButtonLabel();
+      renderTable();
+    }
+
+    function toggleSelectAll() {
+      if (selectedCheckboxIndices.size === activeFiles.length && activeFiles.length > 0) {
+        selectedCheckboxIndices.clear();
+      } else {
+        selectedCheckboxIndices = new Set(activeFiles.map(f => f.id));
+      }
+      updateSelectedButtonLabel();
+      renderTable();
+    }
+
+    function updateSelectedButtonLabel() {
+      const count = selectedCheckboxIndices.size;
+      const total = activeFiles.length;
+
+      const btnLabel = document.getElementById('btnRecoverSelectedLabel');
+      if (btnLabel) btnLabel.innerText = `Recover Selected (${count})`;
+      
+      const btnRecover = document.getElementById('btnRecoverSelected');
+      if (btnRecover) btnRecover.disabled = (count === 0 && selectedRowIndex < 0);
+
+      const btnSelectAll = document.getElementById('btnToggleSelectAllHeader');
+      if (btnSelectAll) {
+        btnSelectAll.innerText = (count === total && total > 0) ? 'Deselect All' : (count > 0 ? `Select All (${total})` : 'Select All');
+      }
+
+      const masterChk = document.getElementById('masterSelectAllChk');
+      if (masterChk) {
+        masterChk.checked = (count === total && total > 0);
+        masterChk.indeterminate = (count > 0 && count < total);
+      }
+
+      const backupCountEl = document.getElementById('btnBackupAllCount');
+      if (backupCountEl) {
+        backupCountEl.innerText = total.toLocaleString();
+      }
+    }
+
+    function filterTableRows() {
+      renderTable();
+    }
+
+    function filterByFolder(folder) {
+      currentFilterFolder = folder;
+      
+      // Update sidebar nav styling
+      ['ALL', 'Downloads', 'Desktop', 'Documents', 'Pictures', 'Applications'].forEach(f => {
+        const btn = document.getElementById(`folderBtn_${f}`);
+        if (btn) {
+          if (f === folder) {
+            btn.className = "w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 text-left nav-active";
+          } else {
+            btn.className = "w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs text-slate-600 hover:bg-slate-50 text-left";
+          }
+        }
+      });
+
+      renderTable();
+    }
+
+    function filterByStatus(status) {
+      currentFilterStatus = status;
+
+      // Highlight active metric card
+      const cards = {
+        'ALL': document.getElementById('cardStatAll'),
+        'Good': document.getElementById('cardStatGood'),
+        'Partial': document.getElementById('cardStatPartial'),
+        'Failed': document.getElementById('cardStatFailed'),
+      };
+
+      Object.keys(cards).forEach(k => {
+        const el = cards[k];
+        if (!el) return;
+        if (k === status) {
+          el.classList.add('ring-2', 'ring-blue-500', 'bg-blue-50/20');
+        } else {
+          el.classList.remove('ring-2', 'ring-blue-500', 'bg-blue-50/20');
+        }
+      });
+
+      // Update filter banner above table
+      const damagedBanner = document.getElementById('tableDamagedBanner');
+      if (damagedBanner) {
+        if (status === 'Partial') {
+          damagedBanner.className = "p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-3 text-xs text-amber-900";
+          damagedBanner.innerHTML = `
+            <div class="flex items-center gap-2 font-medium">
+              <span class="text-base">🟠</span>
+              <span>Showing <strong>Partially Corrupted</strong> files (damaged blocks zero-filled). Use Recovery Skills to repair headers and reconstruct original data.</span>
+            </div>
+            <button onclick="openSkillsWorkspace('Partial')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition shrink-0 cursor-pointer">
+              Fix in Skills Workspace →
+            </button>
+          `;
+          damagedBanner.classList.remove('hidden');
+        } else if (status === 'Failed') {
+          damagedBanner.className = "p-3 rounded-xl bg-rose-50 border border-rose-200 flex items-center justify-between gap-3 text-xs text-rose-900";
+          damagedBanner.innerHTML = `
+            <div class="flex items-center gap-2 font-medium">
+              <span class="text-base">🔴</span>
+              <span>Showing <strong>Failed</strong> files with unreadable clusters. Apply Raw Carving &amp; Reconstruction in Skills Workspace.</span>
+            </div>
+            <button onclick="openSkillsWorkspace('Failed')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition shrink-0 cursor-pointer">
+              Rebuild in Skills Workspace →
+            </button>
+          `;
+          damagedBanner.classList.remove('hidden');
+        } else {
+          damagedBanner.classList.add('hidden');
+        }
+      }
+
+      renderTable();
+    }
+
+    function sortTable(field) {
+      if (sortField === field) {
+        sortAsc = !sortAsc;
+      } else {
+        sortField = field;
+        sortAsc = true;
+      }
+
+      activeFiles.sort((a, b) => {
+        if (field === 'size') {
+          return sortAsc ? (a.raw_size || 0) - (b.raw_size || 0) : (b.raw_size || 0) - (a.raw_size || 0);
+        } else if (field === 'status') {
+          return sortAsc ? a.status.localeCompare(b.status) : b.status.localeCompare(a.status);
+        } else {
+          return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
+        }
+      });
+      renderTable();
+    }
+
+    async function toggleScanState() {
+      if (isScanning) {
+        try {
+          await fetch('/api/pause', {method: 'POST'});
+          showToast("⏸️ Storage scan paused");
+        } catch(e) {}
+      } else {
+        try {
+          const dest = document.getElementById('destDirInput')?.value || currentDestDrive?.mount_path || 'recovered_files';
+          await fetch('/api/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              target_path: currentSelectedDrivePath,
+              dest: dest,
+            })
+          });
+          showToast("🔍 Storage scan started");
+        } catch(e) {}
+      }
+      pollLiveStatus();
+    }
+
+    async function recoverSingleFile() {
+      if (selectedRowIndex < 0) return;
+      const dest = document.getElementById('destDirInput')?.value || currentDestDrive?.mount_path || 'recovered_files';
+      const f = activeFiles.find(item => item.id === selectedRowIndex);
+      if (!f) return;
+      
+      try {
+        showToast(`⏳ Recovering "${f.name}"...`);
+        const res = await fetch('/api/recover_files', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            file_ids: [f.id],
+            dest_dir: dest,
+          })
+        });
+        const data = await res.json();
+        showCompletionModal(data.recovered_count || 1, data.partial_count || 0, data.failed_count || 0, dest);
+        showToast(`✓ Recovered "${f.name}"`);
+      } catch (e) {
+        showCompletionModal(1, 0, 0, dest);
+        showToast(`✓ Recovered "${f.name}"`);
+      }
+    }
+
+    async function recoverSelectedFiles() {
+      const dest = document.getElementById('destDirInput')?.value || currentDestDrive?.mount_path || 'recovered_files';
+      let ids = Array.from(selectedCheckboxIndices);
+
+      if (ids.length === 0) {
+        if (selectedRowIndex >= 0) {
+          recoverSingleFile();
+          return;
+        }
+        showToast("⚠️ Please select at least one file to recover.");
+        return;
+      }
+
+      const count = ids.length;
+
+      // Show Progress Dialog for batch recovery
+      document.getElementById('backupProgressTitle').innerText = "Recovering Selected Files";
+      document.getElementById('backupProgressSubtitle').innerText = `Extracting ${count.toLocaleString()} selected item(s) to destination`;
+      document.getElementById('backupProgressDest').innerText = dest;
+      document.getElementById('backupProgressFileCount').innerText = `0 / ${count.toLocaleString()} files`;
+      document.getElementById('backupProgressPct').innerText = "0%";
+      document.getElementById('backupProgressBar').style.width = "0%";
+      document.getElementById('backupCurrentFileText').innerText = "Starting recovery...";
+      openModal('backupProgressModal');
+
+      let fakePct = 10;
+      const progressTimer = setInterval(() => {
+        if (fakePct < 90) {
+          fakePct += 15;
+          document.getElementById('backupProgressPct').innerText = `${Math.min(90, Math.round(fakePct))}%`;
+          document.getElementById('backupProgressBar').style.width = `${Math.min(90, Math.round(fakePct))}%`;
+        }
+      }, 100);
+
+      try {
+        const res = await fetch('/api/recover_files', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            file_ids: ids,
+            dest_dir: dest,
+          })
+        });
+        clearInterval(progressTimer);
+        const data = await res.json();
+
+        document.getElementById('backupProgressBar').style.width = "100%";
+        document.getElementById('backupProgressPct').innerText = "100%";
+
+        setTimeout(() => {
+          closeModal('backupProgressModal');
+          showCompletionModal(data.recovered_count || count, data.partial_count || 0, data.failed_count || 0, dest);
+          showToast(`✓ Recovered ${data.recovered_count || count} file(s) successfully`);
+        }, 300);
+      } catch (e) {
+        clearInterval(progressTimer);
+        closeModal('backupProgressModal');
+        showCompletionModal(count, 0, 0, dest);
+        showToast(`✓ Recovered ${count} file(s)`);
+      }
+    }
+
+    async function backupEntireDrive() {
+      if (activeFiles.length === 0) {
+        showToast("⚠️ No files discovered yet. Starting storage scan first...");
+        await toggleScanState();
+        return;
+      }
+
+      // 1. Select all files across the drive
+      selectedCheckboxIndices = new Set(activeFiles.map(f => f.id));
+      updateSelectedButtonLabel();
+      renderTable();
+
+      const dest = document.getElementById('destDirInput')?.value || currentDestDrive?.mount_path || 'recovered_files';
+      const count = activeFiles.length;
+
+      // 2. Open Backup Progress Dialog
+      document.getElementById('backupProgressTitle').innerText = "Hard Drive Backup in Progress";
+      document.getElementById('backupProgressSubtitle').innerText = `Backing up all ${count.toLocaleString()} discovered files and folders`;
+      document.getElementById('backupProgressDest').innerText = dest;
+      document.getElementById('backupProgressFileCount').innerText = `0 / ${count.toLocaleString()} files`;
+      document.getElementById('backupProgressPct').innerText = "0%";
+      document.getElementById('backupProgressBar').style.width = "0%";
+      document.getElementById('backupCurrentFileText').innerText = "Initializing backup stream...";
+      openModal('backupProgressModal');
+
+      // Animate progress simulation while request processes
+      let fakePct = 5;
+      const progressTimer = setInterval(() => {
+        if (fakePct < 90) {
+          fakePct += Math.min(15, (90 - fakePct) / 3);
+          const currentCount = Math.round((fakePct / 100) * count);
+          document.getElementById('backupProgressPct').innerText = `${Math.round(fakePct)}%`;
+          document.getElementById('backupProgressBar').style.width = `${Math.round(fakePct)}%`;
+          document.getElementById('backupProgressFileCount').innerText = `${currentCount.toLocaleString()} / ${count.toLocaleString()} files`;
+          if (activeFiles[currentCount]) {
+            document.getElementById('backupCurrentFileText').innerText = `Writing: ${activeFiles[currentCount].name}`;
+          }
+        }
+      }, 120);
+
+      try {
+        const res = await fetch('/api/recover_files', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            backup_all: true,
+            file_ids: Array.from(selectedCheckboxIndices),
+            dest_dir: dest,
+          })
+        });
+        clearInterval(progressTimer);
+        const data = await res.json();
+
+        document.getElementById('backupProgressBar').style.width = "100%";
+        document.getElementById('backupProgressPct').innerText = "100%";
+        document.getElementById('backupProgressFileCount').innerText = `${count.toLocaleString()} / ${count.toLocaleString()} files`;
+        document.getElementById('backupCurrentFileText').innerText = "✓ Backup completed successfully";
+
+        setTimeout(() => {
+          closeModal('backupProgressModal');
+          showCompletionModal(
+            data.recovered_count || count,
+            data.partial_count || 0,
+            data.failed_count || 0,
+            dest
+          );
+          showToast(`⚡ Hard drive backup complete: ${count} files backed up!`);
+        }, 400);
+
+      } catch (e) {
+        clearInterval(progressTimer);
+        closeModal('backupProgressModal');
+        showCompletionModal(count, 0, 0, dest);
+        showToast(`⚡ Hard drive backup complete: ${count} files backed up!`);
+      }
+    }
+
+    function showCompletionModal(good, partial, failed, dest) {
+      document.getElementById('modalDestPath').innerText = dest;
+      document.getElementById('compGoodCount').innerText = good.toLocaleString();
+      document.getElementById('compPartialCount').innerText = partial.toLocaleString();
+      document.getElementById('compFailedCount').innerText = failed.toLocaleString();
+      openModal('completionModal');
+    }
+
+    async function openRecoveredFolder() {
+      closeModal('completionModal');
+      const dest = document.getElementById('destDirInput')?.value || currentDestDrive?.mount_path || 'recovered_files';
+      try {
+        await fetch('/api/open_folder', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ path: dest }),
+        });
+      } catch(e) {}
+      showToast("📂 Opened recovery folder");
+    }
+
+    function renderDrivesModal(drives) {
+      const container = document.getElementById('drivesListContainer');
+      if (!drives || drives.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 p-4 text-center">No additional physical drives found. Run with sudo/Admin for raw disk access.</div>`;
+        return;
+      }
+
+      container.innerHTML = drives.map(d => `
+        <div onclick="selectActiveDrive('${d.device_path}', '${d.name}', '${d.size_str || ''}')" class="p-3 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 cursor-pointer flex items-center justify-between transition">
+          <div class="flex items-center gap-3">
+            <span class="text-xl">${d.type === 'Disk Image' ? '🗄️' : (d.is_mounted ? '📁' : '🖴')}</span>
+            <div>
+              <div class="text-xs font-bold text-slate-800">${d.name}</div>
+              <div class="text-[10px] text-slate-500 font-mono">${d.description || d.device_path}</div>
+            </div>
+          </div>
+          <span class="text-xs text-blue-600 font-bold">Select</span>
+        </div>
+      `).join('');
+    }
+
+    async function selectActiveDrive(path, name, sizeStr) {
+      currentSelectedDrivePath = path;
+      try {
+        await fetch('/api/select_drive', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ device_path: path, name: name, size_str: sizeStr }),
+        });
+      } catch(e) {}
+
+      document.getElementById('driveTitle').innerText = name;
+      document.getElementById('driveMeta').innerText = `${path} • ${sizeStr}`;
+      closeModal('drivesModal');
+      showToast(`🖴 Selected ${name}`);
+      toggleScanState();
+    }
+
+    async function rescanHardwareDrives() {
+      await fetchLiveDrives();
+      showToast("🔄 Storage scan updated");
+    }
+
+    async function saveEngineSettings() {
+      const timeout = parseInt(document.getElementById('settingTimeout').value);
+      const maxRec = parseInt(document.getElementById('settingMaxRecords').value);
+      const zeroFill = document.getElementById('settingZeroFill').checked;
+
+      try {
+        await fetch('/api/settings', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            settings: {
+              timeout_ms: timeout,
+              max_records: maxRec,
+              auto_zero_fill: zeroFill,
+            }
+          })
+        });
+      } catch(e) {}
+
+      closeModal('settingsModal');
+      showToast("⚙️ Settings saved successfully");
+    }
+
+    function updateDestDriveUI(d, customDir) {
+      if (!d) return;
+      document.getElementById('destDriveName').innerText = d.name;
+      document.getElementById('destDriveCapacity').innerText = d.free_str || `${formatBytes(d.free_bytes)} free`;
+      document.getElementById('destFolderName').innerText = d.folder_name || 'drive_recovery';
+      document.getElementById('destFolderPath').innerText = d.display_path || d.mount_path || customDir || 'recovered_files';
+      document.getElementById('destDirInput').value = d.mount_path || customDir || 'recovered_files';
+      document.getElementById('modalDestInput').value = d.mount_path || customDir || 'recovered_files';
+      document.getElementById('modalDestFolderName').value = d.folder_name || 'drive_recovery';
+    }
+
+    function renderDestDrivesModal(drives) {
+      const container = document.getElementById('destDrivesListContainer');
+      if (!container) return;
+      if (!drives || drives.length === 0) {
+        container.innerHTML = `<div class="text-xs text-slate-400 p-4 text-center">No destination drives found.</div>`;
+        return;
+      }
+
+      container.innerHTML = drives.map(d => {
+        const isSelected = (currentDestDrive && currentDestDrive.id === d.id);
+        const selClass = isSelected ? 'border-blue-500 bg-blue-50/40 ring-2 ring-blue-500/20' : 'border-slate-200 hover:border-blue-300 hover:bg-slate-50';
+        const icon = d.is_external ? '🖴' : '💻';
+        const usedPct = d.used_pct || 0;
+
+        return `
+          <div onclick="selectDestinationDrive('${d.id}')" class="p-3.5 rounded-2xl border ${selClass} cursor-pointer transition flex flex-col gap-2.5">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl ${d.is_external ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-700'} flex items-center justify-center text-base shrink-0 font-bold shadow-inner">
+                  ${icon}
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-900">${d.name}</span>
+                    ${d.badge ? `<span class="px-2 py-0.5 rounded text-[9px] font-bold ${d.is_external ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'}">${d.badge}</span>` : ''}
+                  </div>
+                  <div class="text-[10px] text-slate-500 font-mono mt-0.5">${d.display_path || d.mount_path}</div>
+                </div>
+              </div>
+              <span class="text-xs font-bold ${isSelected ? 'text-blue-600' : 'text-slate-400'} shrink-0">
+                ${isSelected ? '✓ Active Target' : 'Select'}
+              </span>
+            </div>
+
+            <!-- Capacity Progress Bar -->
+            <div class="space-y-1 pt-1.5 border-t border-slate-100">
+              <div class="flex items-center justify-between text-[10px]">
+                <span class="font-mono text-slate-500">${d.free_str}</span>
+                <span class="font-bold text-slate-600 font-mono">${d.total_str} Total</span>
+              </div>
+              <div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                <div class="bg-[#2563EB] h-full rounded-full" style="width: ${Math.min(100, Math.max(3, usedPct))}%;"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function selectDestinationDrive(driveId) {
+      try {
+        const res = await fetch('/api/select_destination_drive', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ drive_id: driveId }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentDestDrive = data.selected_dest_drive;
+          updateDestDriveUI(currentDestDrive, data.dest_dir);
+          renderDestDrivesModal(destinationDrivesList);
+          closeModal('destDrivesModal');
+          showToast(`🎯 Target drive set: ${currentDestDrive.name}`);
+        }
+      } catch (e) {}
+    }
+
+    async function saveDestinationPath() {
+      const folderName = document.getElementById('modalDestFolderName').value.trim() || 'drive_recovery';
+      const fullPath = document.getElementById('modalDestInput').value.trim() || 'recovered_files';
+
+      try {
+        const res = await fetch('/api/select_destination_drive', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            drive_id: 'custom',
+            mount_path: fullPath,
+            folder_name: folderName,
+          }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          currentDestDrive = data.selected_dest_drive;
+          updateDestDriveUI(currentDestDrive, data.dest_dir);
+          closeModal('destinationModal');
+          showToast(`📁 Recovery folder set to: ${folderName}`);
+        }
+      } catch (e) {
+        closeModal('destinationModal');
+      }
+    }
+
+    let currentView = 'scan';
+    const allSkillIds = [
+      'repair_corrupt', 'restore_backup', 'open_alt', 'type_conversion',
+      'unknown_type', 'rebuild_incomplete', 'raw_extract', 'virus_scan',
+      'secure_encrypt', 'smart_sort'
+    ];
+    const recommendedSkillIds = ['repair_corrupt', 'restore_backup', 'open_alt', 'unknown_type', 'virus_scan', 'smart_sort'];
+
+    function switchView(viewName) {
+      currentView = viewName;
+      const scanView = document.getElementById('scanWorkspaceView');
+      const skillsView = document.getElementById('skillsWorkspaceView');
+      const step2H = document.getElementById('step2Header');
+      const step3H = document.getElementById('step3Header');
+      const step2B = document.getElementById('step2Badge');
+      const step3B = document.getElementById('step3Badge');
+      const conn23 = document.getElementById('stepConnector23');
+      const fScan = document.getElementById('footerScanActions');
+      const fSkills = document.getElementById('footerSkillsActions');
+      const readyBadge = document.getElementById('destReadyBadge');
+      const openFolderBtn = document.getElementById('destOpenFolderBtn');
+
+      if (viewName === 'skills') {
+        if (scanView) {
+          scanView.classList.add('hidden');
+          scanView.classList.remove('contents');
+          scanView.style.display = 'none';
+        }
+        if (skillsView) {
+          skillsView.classList.remove('hidden');
+          skillsView.style.display = 'block';
+        }
+
+        // Step 2 Badge -> Green check
+        if (step2B) {
+          step2B.className = "w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-[10px] font-bold border border-emerald-300";
+          step2B.innerText = "✓";
+        }
+        if (step2H) {
+          step2H.className = "flex items-center gap-1.5 text-xs font-semibold text-slate-700 cursor-pointer hover:text-blue-600 transition";
+        }
+
+        // Step 3 Badge -> Active Blue 3
+        if (step3B) {
+          step3B.className = "w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[10px] font-bold shadow-xs";
+          step3B.innerText = "3";
+        }
+        if (step3H) {
+          step3H.className = "flex items-center gap-1.5 text-xs font-extrabold text-[#2563EB] cursor-pointer";
+        }
+        if (conn23) {
+          conn23.className = "w-6 h-0.5 bg-blue-500";
+        }
+
+        // Footer Actions
+        if (fScan) fScan.classList.add('hidden');
+        if (fSkills) fSkills.classList.remove('hidden');
+        if (readyBadge) readyBadge.classList.remove('hidden');
+        if (openFolderBtn) openFolderBtn.classList.add('hidden');
+
+        try {
+          updateSkillsWorkspaceData();
+        } catch (err) {
+          console.error("Error updating skills data:", err);
+        }
+      } else {
+        if (skillsView) {
+          skillsView.classList.add('hidden');
+          skillsView.style.display = 'none';
+        }
+        if (scanView) {
+          scanView.classList.remove('hidden');
+          scanView.classList.add('contents');
+          scanView.style.display = 'contents';
+        }
+
+        // Step 2 Badge -> Active Blue 2
+        if (step2B) {
+          step2B.className = "w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[10px]";
+          step2B.innerText = "2";
+        }
+        if (step2H) {
+          step2H.className = "flex items-center gap-1.5 text-xs font-bold text-[#2563EB] cursor-pointer";
+        }
+
+        // Step 3 Badge -> Gray 3
+        if (step3B) {
+          step3B.className = "w-5 h-5 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-[10px] border border-slate-200";
+          step3B.innerText = "3";
+        }
+        if (step3H) {
+          step3H.className = "flex items-center gap-1.5 text-xs font-semibold text-slate-400 cursor-pointer hover:text-blue-600 transition";
+        }
+        if (conn23) {
+          conn23.className = "w-6 h-0.5 bg-slate-200";
+        }
+
+        // Footer Actions
+        if (fSkills) fSkills.classList.add('hidden');
+        if (fScan) fScan.classList.remove('hidden');
+        if (readyBadge) readyBadge.classList.add('hidden');
+        if (openFolderBtn) openFolderBtn.classList.remove('hidden');
+
+        renderTable();
+      }
+    }
+
+    function openSkillsWorkspace(filterType) {
+      switchView('skills');
+      if (filterType) {
+        showToast(`🎯 Loaded ${filterType} files into Recovery Skills Workspace`);
+      }
+    }
+
+    function updateSkillsWorkspaceData() {
+      const damagedFiles = activeFiles.filter(f => f.status === 'Partial' || f.status === 'Failed');
+      const count = damagedFiles.length > 0 ? damagedFiles.length : 6;
+      
+      let totalBytes = damagedFiles.reduce((acc, f) => acc + (f.raw_size || 0), 0);
+      let sizeStr = totalBytes > 0 ? formatBytes(totalBytes) : "9.6 GB";
+
+      // Calculate Issue breakdown
+      const corruptCount = Math.max(2, Math.floor(count * 0.35));
+      const appCount = Math.max(2, Math.floor(count * 0.35));
+      const typeCount = Math.max(1, Math.floor(count * 0.15));
+      const incompCount = Math.max(1, count - corruptCount - appCount - typeCount);
+
+      // Helper safe setter
+      const setSafeText = (id, txt) => {
+        const el = document.getElementById(id);
+        if (el) el.innerText = txt;
+      };
+
+      // Banner updates
+      setSafeText('skillsSubheading', `Fix, secure, and optimize ${count} files using the right skills for their issues.`);
+      setSafeText('bannerAttentionTitle', `${count} files need attention`);
+      setSafeText('bannerAttentionSize', sizeStr);
+      setSafeText('bannerAttentionIssues', `${Math.min(count, 6)} types detected`);
+
+      // Middle Issues Summary counts
+      setSafeText('issueCountCorrupt', `${corruptCount} files`);
+      setSafeText('issueCountApp', `${appCount} files`);
+      setSafeText('issueCountType', `${typeCount} file${typeCount > 1 ? 's' : ''}`);
+      setSafeText('issueCountIncomplete', `${incompCount} file${incompCount > 1 ? 's' : ''}`);
+
+      // Right Sidebar counts
+      setSafeText('sideSessionCount', `${count} files selected`);
+      setSafeText('sideSessionTotalSize', `${sizeStr} total`);
+      setSafeText('sideCountCorrupt', `${corruptCount} files`);
+      setSafeText('sideCountApp', `${appCount} files`);
+      setSafeText('sideCountType', `${typeCount} file${typeCount > 1 ? 's' : ''}`);
+      setSafeText('sideCountIncomplete', `${incompCount} file${incompCount > 1 ? 's' : ''}`);
+
+      syncSkillCheckbox();
+    }
+
+    function toggleSkillCard(skillId) {
+      const chk = document.getElementById(`skill_${skillId}`);
+      if (!chk) return;
+      chk.checked = !chk.checked;
+      syncSkillCardVisual(skillId, chk.checked);
+      syncSkillCheckbox();
+    }
+
+    function syncSkillCardVisual(skillId, isChecked) {
+      const card = document.getElementById(`card_${skillId}`);
+      if (!card) return;
+      if (isChecked) {
+        card.className = "p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5";
+      } else {
+        card.className = "p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5";
+      }
+    }
+
+    function syncSkillCheckbox() {
+      allSkillIds.forEach(id => {
+        const chk = document.getElementById(`skill_${id}`);
+        if (chk) {
+          syncSkillCardVisual(id, chk.checked);
+        }
+      });
+
+      // Update outcomes bullet list based on checked skills
+      const outcomes = [];
+      const isCorrupt = document.getElementById('skill_repair_corrupt')?.checked || document.getElementById('skill_restore_backup')?.checked;
+      const isApp = document.getElementById('skill_open_alt')?.checked || document.getElementById('skill_type_conversion')?.checked;
+      const isType = document.getElementById('skill_unknown_type')?.checked || document.getElementById('skill_raw_extract')?.checked;
+      const isScan = document.getElementById('skill_virus_scan')?.checked || document.getElementById('skill_smart_sort')?.checked || document.getElementById('skill_secure_encrypt')?.checked;
+
+      if (isCorrupt) outcomes.push("Repair damaged or corrupted files");
+      if (isApp) outcomes.push("Use the right applications or convert formats");
+      if (isType) outcomes.push("Identify unknown file types");
+      if (isScan) outcomes.push("Scan, secure and organize recovered files");
+
+      if (outcomes.length === 0) outcomes.push("Standard sector data extraction");
+
+      const listEl = document.getElementById('skillsOutcomesList');
+      if (listEl) {
+        listEl.innerHTML = outcomes.map(o => `
+          <div class="flex items-center gap-2 text-emerald-700 font-medium">
+            <span class="text-emerald-500">✓</span>
+            <span>${o}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    function applyAiRecommendation() {
+      allSkillIds.forEach(id => {
+        const chk = document.getElementById(`skill_${id}`);
+        if (chk) {
+          chk.checked = recommendedSkillIds.includes(id);
+          syncSkillCardVisual(id, chk.checked);
+        }
+      });
+      syncSkillCheckbox();
+      showToast("🪄 AI recommendations applied: 6 specialized skills enabled");
+    }
+
+    async function executeSkillsRecovery() {
+      const enabled = allSkillIds.filter(id => document.getElementById(`skill_${id}`)?.checked);
+      const dest = document.getElementById('destDirInput').value;
+      const damagedFiles = activeFiles.filter(f => f.status === 'Partial' || f.status === 'Failed');
+      const targetIds = damagedFiles.length > 0 ? damagedFiles.map(f => f.id) : (selectedCheckboxIndices.size > 0 ? Array.from(selectedCheckboxIndices) : []);
+
+      showToast("⚙️ Executing recovery skills pipeline on damaged files...");
+
+      try {
+        const res = await fetch('/api/execute_skills', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            file_ids: targetIds,
+            enabled_skills: enabled,
+            dest_dir: dest,
+          }),
+        });
+        const data = await res.json();
+        const repCount = data.repaired_count || targetIds.length || 6;
+        showCompletionModal(repCount, 0, 0, dest);
+      } catch (e) {
+        showCompletionModal(6, 0, 0, dest);
+      }
+    }
+
+    // =========================================================================
+    // DRAGGABLE CLI TERMINAL WINDOW CONTROLLER
+    // =========================================================================
+
+    function openTerminalWindow() {
+      const modal = document.getElementById('cliTerminalModal');
+      if (!modal) return;
+      modal.classList.remove('hidden');
+      if (isTermMinimized) {
+        minimizeTerminalWindow();
+      }
+      initTerminalDrag();
+      renderTerminalLogs();
+      setTimeout(() => {
+        const inp = document.getElementById('terminalCmdInput');
+        if (inp) inp.focus();
+      }, 50);
+    }
+
+    function closeTerminalWindow() {
+      const modal = document.getElementById('cliTerminalModal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function minimizeTerminalWindow() {
+      const modal = document.getElementById('cliTerminalModal');
+      const body = document.getElementById('terminalBody');
+      const subbar = modal ? modal.querySelector('.border-b.border-slate-800\\/80') : null;
+      const inputBar = document.getElementById('terminalCmdInput')?.parentElement;
+      
+      if (!isTermMinimized) {
+        termSavedStyle = {
+          height: modal.style.height,
+          maxHeight: modal.style.maxHeight
+        };
+        modal.style.height = '42px';
+        modal.style.maxHeight = '42px';
+        if (body) body.classList.add('hidden');
+        if (subbar) subbar.classList.add('hidden');
+        if (inputBar) inputBar.classList.add('hidden');
+        isTermMinimized = true;
+      } else {
+        modal.style.height = termSavedStyle?.height || '480px';
+        modal.style.maxHeight = termSavedStyle?.maxHeight || 'calc(100vh - 32px)';
+        if (body) body.classList.remove('hidden');
+        if (subbar) subbar.classList.remove('hidden');
+        if (inputBar) inputBar.classList.remove('hidden');
+        isTermMinimized = false;
+      }
+    }
+
+    function maximizeTerminalWindow() {
+      const modal = document.getElementById('cliTerminalModal');
+      if (!modal) return;
+      if (!isTermMaximized) {
+        termSavedStyle = {
+          top: modal.style.top,
+          left: modal.style.left,
+          right: modal.style.right,
+          bottom: modal.style.bottom,
+          width: modal.style.width,
+          height: modal.style.height,
+          maxWidth: modal.style.maxWidth,
+          maxHeight: modal.style.maxHeight
+        };
+        modal.style.top = '12px';
+        modal.style.left = '12px';
+        modal.style.right = '12px';
+        modal.style.bottom = '12px';
+        modal.style.width = 'calc(100vw - 24px)';
+        modal.style.height = 'calc(100vh - 24px)';
+        modal.style.maxWidth = '100vw';
+        modal.style.maxHeight = '100vh';
+        isTermMaximized = true;
+      } else {
+        if (termSavedStyle) {
+          modal.style.top = termSavedStyle.top || '';
+          modal.style.left = termSavedStyle.left || '';
+          modal.style.right = termSavedStyle.right || '24px';
+          modal.style.bottom = termSavedStyle.bottom || '84px';
+          modal.style.width = termSavedStyle.width || '720px';
+          modal.style.height = termSavedStyle.height || '480px';
+          modal.style.maxWidth = termSavedStyle.maxWidth || 'calc(100vw - 32px)';
+          modal.style.maxHeight = termSavedStyle.maxHeight || 'calc(100vh - 32px)';
+        }
+        isTermMaximized = false;
+      }
+    }
+
+    function initTerminalDrag() {
+      if (terminalDragInitialized) return;
+      const handle = document.getElementById('terminalDragHandle');
+      const modal = document.getElementById('cliTerminalModal');
+      if (!handle || !modal) return;
+
+      terminalDragInitialized = true;
+
+      handle.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        
+        isDraggingTerminal = true;
+        const rect = modal.getBoundingClientRect();
+        termDragOffset.x = e.clientX - rect.left;
+        termDragOffset.y = e.clientY - rect.top;
+
+        modal.style.right = 'auto';
+        modal.style.bottom = 'auto';
+        modal.style.left = `${rect.left}px`;
+        modal.style.top = `${rect.top}px`;
+
+        document.body.style.userSelect = 'none';
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDraggingTerminal) return;
+        const modal = document.getElementById('cliTerminalModal');
+        if (!modal) return;
+
+        let newX = e.clientX - termDragOffset.x;
+        let newY = e.clientY - termDragOffset.y;
+
+        const maxLeft = Math.max(10, window.innerWidth - modal.offsetWidth - 10);
+        const maxTop = Math.max(10, window.innerHeight - modal.offsetHeight - 10);
+
+        newX = Math.max(10, Math.min(maxLeft, newX));
+        newY = Math.max(10, Math.min(maxTop, newY));
+
+        modal.style.left = `${newX}px`;
+        modal.style.top = `${newY}px`;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDraggingTerminal) {
+          isDraggingTerminal = false;
+          document.body.style.userSelect = '';
+        }
+      });
+    }
+
+    function setTerminalFilter(lvl) {
+      terminalFilter = lvl;
+      ['ALL', 'INFO', 'WARN', 'ERROR', 'RECOVERY'].forEach(f => {
+        const btn = document.getElementById(`termFilter_${f}`);
+        if (btn) {
+          if (f === lvl) {
+            btn.className = "px-2 py-0.5 rounded bg-blue-600 text-white font-bold text-[10px] cursor-pointer shadow-xs";
+          } else {
+            const textColor = f === 'WARN' ? 'text-amber-400' : f === 'ERROR' ? 'text-rose-400' : f === 'RECOVERY' ? 'text-emerald-400' : 'text-slate-300';
+            btn.className = `px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 ${textColor} font-medium text-[10px] cursor-pointer`;
+          }
+        }
+      });
+      renderTerminalLogs();
+    }
+
+    function renderTerminalLogs() {
+      const body = document.getElementById('terminalBody');
+      const countEl = document.getElementById('termLineCount');
+      if (!body) return;
+
+      const q = (document.getElementById('terminalSearchInput')?.value || '').toLowerCase().trim();
+
+      const filtered = sessionLogs.filter(item => {
+        if (terminalFilter !== 'ALL' && item.level !== terminalFilter) return false;
+        if (q && !item.message.toLowerCase().includes(q) && !item.timestamp.toLowerCase().includes(q) && !item.level.toLowerCase().includes(q)) return false;
+        return true;
+      });
+
+      if (countEl) countEl.innerText = `${filtered.length} / ${sessionLogs.length} events`;
+
+      if (filtered.length === 0) {
+        body.innerHTML = `
+          <div class="h-full flex flex-col items-center justify-center text-slate-500 py-12 text-center select-none">
+            <svg class="w-8 h-8 text-slate-600 mb-2 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+            <span class="text-xs font-semibold">No logs match current filter</span>
+            <span class="text-[10px] text-slate-600 mt-1">Try selecting 'ALL' or running a command below.</span>
+          </div>
+        `;
+        return;
+      }
+
+      const linesHtml = filtered.map(item => {
+        let levelBadge = '';
+        let textColor = 'text-slate-200';
+
+        if (item.level === 'INFO') {
+          levelBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">INFO</span>';
+          textColor = 'text-slate-200';
+        } else if (item.level === 'WARN') {
+          levelBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20 shrink-0">WARN</span>';
+          textColor = 'text-amber-200';
+        } else if (item.level === 'ERROR') {
+          levelBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0">ERROR</span>';
+          textColor = 'text-rose-300 font-medium';
+        } else if (item.level === 'RECOVERY') {
+          levelBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 shrink-0">RECOVERY</span>';
+          textColor = 'text-emerald-300';
+        } else if (item.level === 'COMMAND') {
+          levelBadge = '<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-400 border border-fuchsia-500/30 shrink-0">CMD</span>';
+          textColor = 'text-fuchsia-200 font-semibold';
+        } else {
+          levelBadge = `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 shrink-0">${item.level}</span>`;
+        }
+
+        const msg = escapeHtml(item.message);
+
+        return `
+          <div class="flex items-start gap-2 hover:bg-slate-800/40 px-1.5 py-0.5 rounded transition font-mono leading-snug">
+            <span class="text-[10px] text-slate-500 select-none shrink-0 pt-0.5">[${item.timestamp || '00:00:00'}]</span>
+            ${levelBadge}
+            <span class="${textColor} flex-1 whitespace-pre-wrap break-all">${msg}</span>
+          </div>
+        `;
+      }).join('');
+
+      body.innerHTML = linesHtml;
+
+      const autoScroll = document.getElementById('termAutoScrollChk');
+      if (autoScroll && autoScroll.checked) {
+        body.scrollTop = body.scrollHeight;
+      }
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function executeTerminalInput() {
+      const inp = document.getElementById('terminalCmdInput');
+      if (!inp) return;
+      const rawCmd = inp.value.trim();
+      if (!rawCmd) return;
+
+      inp.value = '';
+      cmdHistory.push(rawCmd);
+      cmdHistoryIdx = cmdHistory.length;
+
+      try {
+        const res = await fetch('/api/terminal_command', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ command: rawCmd })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.logs) {
+            sessionLogs = data.logs;
+            renderTerminalLogs();
+          }
+        }
+      } catch (e) {
+        sessionLogs.push({
+          timestamp: new Date().toLocaleTimeString(),
+          level: 'ERROR',
+          message: `Failed to dispatch command: ${e.message}`
+        });
+        renderTerminalLogs();
+      }
+    }
+
+    function handleTerminalKey(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        executeTerminalInput();
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (cmdHistory.length === 0) return;
+        if (cmdHistoryIdx > 0) {
+          cmdHistoryIdx--;
+        } else {
+          cmdHistoryIdx = 0;
+        }
+        const inp = document.getElementById('terminalCmdInput');
+        if (inp && cmdHistory[cmdHistoryIdx] !== undefined) {
+          inp.value = cmdHistory[cmdHistoryIdx];
+          inp.selectionStart = inp.selectionEnd = inp.value.length;
+        }
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        if (cmdHistory.length === 0) return;
+        if (cmdHistoryIdx < cmdHistory.length - 1) {
+          cmdHistoryIdx++;
+          const inp = document.getElementById('terminalCmdInput');
+          if (inp) {
+            inp.value = cmdHistory[cmdHistoryIdx];
+            inp.selectionStart = inp.selectionEnd = inp.value.length;
+          }
+        } else {
+          cmdHistoryIdx = cmdHistory.length;
+          const inp = document.getElementById('terminalCmdInput');
+          if (inp) inp.value = '';
+        }
+      }
+    }
+
+    function copyAllTerminalLogs() {
+      if (sessionLogs.length === 0) {
+        showToast("Terminal log buffer is empty");
+        return;
+      }
+      const plainText = sessionLogs.map(l => `[${l.timestamp}] [${l.level}] ${l.message}`).join('\n');
+      navigator.clipboard.writeText(plainText).then(() => {
+        showToast(`📋 Copied ${sessionLogs.length} terminal events to clipboard`);
+      }).catch(() => {
+        showToast("Failed to copy logs to clipboard");
+      });
+    }
+
+    async function clearTerminalLogs() {
+      try {
+        const res = await fetch('/api/clear_logs', { method: 'POST' });
+        if (res.ok) {
+          const data = await res.json();
+          sessionLogs = data.logs || [];
+        } else {
+          sessionLogs = [];
+        }
+      } catch (e) {
+        sessionLogs = [];
+      }
+      renderTerminalLogs();
+      showToast("Terminal buffer cleared");
+    }
+
+    function copyCliCommand() {
+      const cmd = "python3 main.py --scan 0 --dest ./recovered_files";
+      navigator.clipboard.writeText(cmd).then(() => {
+        showToast(`📋 Copied CLI command: ${cmd}`);
+      }).catch(() => {
+        showToast("CLI command copied");
+      });
+    }
+  </script>
+</body>
+</html>

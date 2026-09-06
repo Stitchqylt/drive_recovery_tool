@@ -1,9 +1,9 @@
 #!/bin/bash
-# Antigravity Recovery Web Studio Launcher (macOS/Linux)
+# Drive Rescue Recovery Web Studio Launcher (macOS/Linux)
 # Run this script to start the web-based recovery dashboard
 
 echo "========================================================================"
-echo "  ANTIGRAVITY RECOVERY STUDIO (WEB DASHBOARD) - macOS/Linux"
+echo "  Drive Rescue Dashboard (WEB DASHBOARD) - macOS/Linux"
 echo "========================================================================"
 echo ""
 

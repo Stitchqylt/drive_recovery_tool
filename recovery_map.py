@@ -1,5 +1,5 @@
 """
-mapfile.py - Persistent, Crash-Resilient Recovery Mapfile Journal
+recovery_map.py - Persistent, Crash-Resilient Recovery Mapfile Journal
 
 Maintains a contiguous block-level map of the entire drive / partition,
 tracking every sector's exact recovery state (UNTOUCHED, RECOVERED, SKIPPED, BAD, SCRAPED).

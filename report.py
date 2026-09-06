@@ -1,5 +1,5 @@
 """
-audit_report.py - Professional Data Recovery Diagnostic & Forensic Audit Certificate Generator
+report.py - Professional Data Recovery Diagnostic & Forensic Audit Certificate Generator
 
 Generates executive-ready HTML & printable recovery certificates detailing
 hardware S.M.A.R.T. telemetry, good/bad sector distribution, and itemized file manifests with SHA-256 hashes.
@@ -8,7 +8,7 @@ hardware S.M.A.R.T. telemetry, good/bad sector distribution, and itemized file m
 import os
 import time
 from typing import List, Dict, Any, Optional
-from smart_monitor import SmartHealthReport
+from health import SmartHealthReport
 
 
 def generate_audit_report_html(
@@ -242,7 +242,7 @@ def generate_audit_report_html(
     </table>
 
     <div class="footer">
-      Generated automatically by Antigravity Raw Drive Recovery Engine • Cryptographic SHA-256 Verified
+      Generated automatically by Drive Rescue Recovery Engine - Cryptographic SHA-256 Verified
     </div>
   </div>
 </body>

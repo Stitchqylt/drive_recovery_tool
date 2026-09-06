@@ -1,5 +1,5 @@
 """
-hash_verifier.py - Forensic Integrity Cryptographic Hash Verifier
+hash_verify.py - Forensic Integrity Cryptographic Hash Verifier
 
 Computes streaming SHA-256 and MD5 cryptographic checksums for recovered files
 to maintain forensic integrity verification and audit logging.

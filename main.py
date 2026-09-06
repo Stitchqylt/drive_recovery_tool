@@ -10,7 +10,7 @@ import os
 import argparse
 import platform
 
-from raw_io import is_admin, IS_WINDOWS, IS_MACOS, IS_LINUX
+from diskio import is_admin, IS_WINDOWS, IS_MACOS, IS_LINUX
 
 
 def parse_global_args():
@@ -38,9 +38,9 @@ def main():
     # Determine execution mode
     if args.web:
         # Explicit web studio request
-        from web_studio import run_web_studio
+        from dashboard import run_dashboard, run_web_studio
         print(f"[*] Starting Web Studio on http://127.0.0.1:8080")
-        run_web_studio(open_browser=True)
+        run_dashboard(open_browser=True)
         return
 
     # If --cli flag is explicitly passed, or if headless / non-interactive terminal without --gui
@@ -54,8 +54,8 @@ def main():
         if not IS_WINDOWS:
             print("[*] Tkinter GUI not available on this platform. Launching Web Studio instead...")
             print("[*] Use --web flag explicitly to avoid this message.")
-            from web_studio import run_web_studio
-            run_web_studio(open_browser=True)
+            from dashboard import run_dashboard, run_web_studio
+            run_dashboard(open_browser=True)
         else:
             try:
                 from gui import run_gui

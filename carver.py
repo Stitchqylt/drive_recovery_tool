@@ -1,5 +1,5 @@
 """
-file_carver.py - Signature-Based Raw File Carver
+carver.py - Signature-Based Raw File Carver
 
 Extracts files directly by signature (JPEG, PNG, PDF, ZIP/DOCX, SQLite, MP4, GIF)
 from raw sectors when filesystem metadata ($MFT or partition tables) is destroyed.
@@ -9,7 +9,7 @@ import os
 import struct
 import csv
 from typing import List, Dict, Tuple, Optional, Any
-from raw_io import RawDiskReader
+from diskio import RawDiskReader
 
 SIGNATURES = [
     {

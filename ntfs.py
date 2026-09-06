@@ -1,5 +1,5 @@
 """
-ntfs_parser.py - NTFS Boot Sector & Master File Table ($MFT) Parser
+ntfs.py - NTFS Boot Sector & Master File Table ($MFT) Parser
 
 Parses NTFS Volume Boot Record (VBR), MFT records, Fixup Sequences (USA),
 Standard Information, File Name attributes, and resident / non-resident Data Runs
@@ -8,7 +8,7 @@ to map files to their physical clusters on disk.
 
 import struct
 from typing import List, Dict, Tuple, Optional, Any
-from raw_io import RawDiskReader
+from diskio import RawDiskReader
 
 # MFT Record Signatures
 MFT_MAGIC_FILE = b"FILE"
