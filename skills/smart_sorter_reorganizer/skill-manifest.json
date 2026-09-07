@@ -1,0 +1,23 @@
+{
+  "id": "smart-sorter-reorganizer",
+  "name": "Smart Sorter & Reorganizer",
+  "version": "1.2.0",
+  "contract_version": "v1.0.0",
+  "description": "Automatically categorize and organize recovered files into Documents, Media, Archives, Code, and Databases.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "always_available": true
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.smart_sorter_reorganizer.skill:SmartSorterReorganizerSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": {
+    "strategy": "canary",
+    "weight": 100,
+    "fallback_version": "1.0.0",
+    "is_active": true
+  },
+  "capabilities": ["semantic_classification", "directory_tree_structuring", "category_sorting"]
+}

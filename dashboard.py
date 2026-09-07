@@ -35,6 +35,10 @@ from recovery_map import RecoveryMapFile
 from multipass_scheduler import MultiPassScheduler
 from carver import FileCarver
 
+from drive_rescue.contract import SkillInput, FilePayload, SkillOutput
+from drive_rescue.registry import GLOBAL_REGISTRY
+from drive_rescue.runtime.executor import GLOBAL_EXECUTOR
+
 IS_WINDOWS = sys.platform.startswith("win")
 IS_MACOS = sys.platform == "darwin"
 IS_LINUX = sys.platform.startswith("linux")
@@ -82,7 +86,12 @@ _admin_txt = (
 log_session(f"Security & Privilege Check: {_admin_txt}", "INFO" if is_admin() else "WARN")
 log_session("Direct I/O Subsystem: Non-blocking asynchronous sector reader loaded.", "INFO")
 log_session("NTFS & MFT Parser: Fixup array (USA) and cluster chain validator ready.", "INFO")
-log_session("Recovery Skills Engine: 10 specialized file reconstruction modules armed.", "INFO")
+
+# Dynamic discovery of decoupled recovery skills catalog
+_skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
+_discovered_skills_count = GLOBAL_REGISTRY.discover_directory(_skills_dir)
+log_session(f"Recovery Skills Engine: Discovered & registered {_discovered_skills_count} decoupled skills in catalog.", "INFO")
+
 log_session(
     "Web Studio HTTP Server: Active on http://127.0.0.1:8080. Live telemetry stream ready.",
     "RECOVERY",
@@ -1081,6 +1090,23 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             else:
                 self._send_json({"error": "No audit report found"}, 404)
 
+        elif path == "/api/skills/registry":
+            skills_list = GLOBAL_REGISTRY.list_all_skills()
+            self._send_json({
+                "success": True,
+                "total_skills": len(skills_list),
+                "skills": skills_list,
+            })
+
+        elif path == "/api/skills/health":
+            health_map = GLOBAL_EXECUTOR.check_all_health()
+            all_ok = all(h.get("status") == "OK" for h in health_map.values()) if health_map else True
+            self._send_json({
+                "success": True,
+                "overall_status": "OK" if all_ok else "DEGRADED",
+                "skills_health": health_map,
+            })
+
         else:
             self.send_response(404)
             self.end_headers()
@@ -1380,12 +1406,48 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
                 "message": f"Selected target destination: {ret_dest['name']}",
             })
 
+        elif path == "/api/skills/registry/rollout":
+            skill_id = str(data.get("skill_id", ""))
+            version = str(data.get("version", "1.0.0"))
+            weight = int(data.get("weight", 100))
+            updated = GLOBAL_REGISTRY.update_rollout_weight(skill_id, version, weight)
+            if updated:
+                log_session(f"Updated canary rollout weight for '{skill_id}' v{version} -> {weight}%", "INFO")
+                self._send_json({
+                    "success": True,
+                    "skill_id": skill_id,
+                    "version": version,
+                    "weight": weight,
+                    "message": f"Rollout weight for {skill_id} v{version} updated to {weight}%",
+                })
+            else:
+                self._send_json({
+                    "success": False,
+                    "error": f"Skill or version not found in registry: {skill_id} v{version}",
+                }, 404)
+
         elif path == "/api/execute_skills":
             file_ids = data.get("file_ids", [])
-            enabled_skills = data.get(
+            raw_enabled_skills = data.get(
                 "enabled_skills",
                 ["repair_corrupt", "restore_backup", "open_alt", "unknown_type", "virus_scan", "smart_sort"]
             )
+
+            # Map legacy shorthand aliases to canonical manifest skill IDs
+            alias_map = {
+                "repair_corrupt": "repair-corrupted-files",
+                "restore_backup": "restore-backup-versions",
+                "open_alt": "open-in-alternative-apps",
+                "type_convert": "type-conversion-engine",
+                "unknown_type": "identify-unknown-file-types",
+                "rebuild_incomplete": "rebuild-incomplete-files",
+                "raw_carve": "raw-cluster-carving",
+                "virus_scan": "scan-for-malware-quarantine",
+                "secure_archive": "secure-archive-encryption",
+                "smart_sort": "smart-sorter-reorganizer",
+            }
+            canonical_skills = [alias_map.get(s, s) for s in raw_enabled_skills]
+
             with SESSION_LOCK:
                 dest_dir = os.path.abspath(data.get("dest_dir", ACTIVE_SESSION["dest_dir"]))
                 all_files = list(ACTIVE_SESSION["all_files"])
@@ -1398,106 +1460,59 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             else:
                 targets = [f for f in all_files if f.get("id") in file_ids]
 
-            log_session(f"Executing Recovery Skills pipeline with {len(enabled_skills)} skills on {len(targets)} files...", "INFO")
+            log_session(f"Executing Recovery Skills pipeline with {len(canonical_skills)} decoupled skills on {len(targets)} files...", "INFO")
 
-            repaired_count = 0
-            scanned_count = 0
-            sorted_count = 0
-            audit_entries = []
+            payload_files = [FilePayload.from_dict(f) for f in targets]
+            session_id = str(ACTIVE_SESSION.get("id", "session-recovery"))
+            skill_input = SkillInput(
+                skill_id="pipeline",
+                files=payload_files,
+                destination_dir=dest_dir,
+                session_id=session_id,
+            )
 
-            for f in targets:
-                real_p = f.get("real_path", "")
-                clean_name = f["name"].replace(".partial", "")
+            pipeline_outputs = GLOBAL_EXECUTOR.execute_pipeline(canonical_skills, skill_input)
 
-                if "smart_sort" in enabled_skills:
-                    ext = os.path.splitext(clean_name)[1].lower()
-                    if ext in (".pdf", ".docx", ".doc", ".txt", ".rtf", ".pages", ".xlsx", ".csv"):
-                        sub_folder = "Repaired_Documents"
-                    elif ext in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".heic", ".mp4", ".mov", ".mp3", ".wav"):
-                        sub_folder = "Repaired_Media"
-                    elif ext in (".zip", ".tar", ".gz", ".7z", ".dmg", ".pkg"):
-                        sub_folder = "Repaired_Archives"
-                    elif ext in (".db", ".sqlite", ".json", ".xml", ".py", ".html", ".css", ".js"):
-                        sub_folder = "Repaired_Code_and_Data"
-                    else:
-                        sub_folder = "Repaired_Files"
-                    target_dir = os.path.join(dest_dir, sub_folder)
-                    sorted_count += 1
-                else:
-                    target_dir = dest_dir
+            repaired_count = sum(out.repaired_count for out in pipeline_outputs)
+            quarantined_count = sum(out.quarantined_count for out in pipeline_outputs)
+            sorted_count = sum(out.sorted_count for out in pipeline_outputs)
 
-                os.makedirs(target_dir, exist_ok=True)
-                out_path = os.path.join(target_dir, clean_name)
-
-                try:
-                    if real_p and os.path.exists(real_p):
-                        if os.path.isdir(real_p):
-                            if os.path.exists(out_path):
-                                shutil.rmtree(out_path, ignore_errors=True)
-                            shutil.copytree(real_p, out_path)
-                            repaired_count += 1
-                        else:
-                            with open(real_p, "rb") as in_f:
-                                content = in_f.read()
-
-                            if "repair_corrupt" in enabled_skills or "restore_backup" in enabled_skills:
-                                ext_l = os.path.splitext(clean_name)[1].lower()
-                                if ext_l == ".png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
-                                    content = b"\x89PNG\r\n\x1a\n" + (content[8:] if len(content) > 8 else b"")
-                                elif ext_l == ".pdf" and not content.startswith(b"%PDF-"):
-                                    content = b"%PDF-1.7\n" + (content[9:] if len(content) > 9 else b"")
-                                elif ext_l == ".sqlite" and not content.startswith(b"SQLite format 3\x00"):
-                                    content = b"SQLite format 3\x00" + (content[16:] if len(content) > 16 else b"")
-                                elif ext_l in (".jpg", ".jpeg") and not content.startswith(b"\xff\xd8\xff"):
-                                    content = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + (content[12:] if len(content) > 12 else b"")
-
-                            if "virus_scan" in enabled_skills:
-                                scanned_count += 1
-
-                            with open(out_path, "wb") as out_f:
-                                out_f.write(content)
-                            repaired_count += 1
-                    else:
-                        with open(out_path, "wb") as out_f:
-                            out_f.write(f"Recovered & Repaired File: {clean_name}\nIntegrity verified via Drive Rescue Skills Engine.".encode())
-                        repaired_count += 1
-
-                    audit_entries.append({
-                        "id": f.get("id"),
-                        "name": clean_name,
-                        "original_status": f.get("status", "Partial"),
-                        "repaired_status": "Clean & Verified",
-                        "dest_path": out_path,
-                        "skills_applied": enabled_skills,
-                    })
-                    log_session(f"Reconstructed & verified integrity: {clean_name} -> {out_path}", "RECOVERY")
-                except Exception as ex:
-                    log_session(f"Skill execution failed on {clean_name}: {ex}", "ERROR")
+            all_audit_entries = []
+            for out in pipeline_outputs:
+                for a in out.audit_log:
+                    entry_dict = a.to_dict() if hasattr(a, "to_dict") else a
+                    all_audit_entries.append(entry_dict)
+                    log_session(f"[{out.skill_id}] {entry_dict.get('action')}: file #{entry_dict.get('file_id')} - {entry_dict.get('detail')}", "RECOVERY")
 
             skills_manifest_path = os.path.join(dest_dir, "skills_recovery_report.json")
             try:
                 with open(skills_manifest_path, "w", encoding="utf-8") as rep_f:
                     json.dump({
                         "timestamp": time.ctime(),
-                        "skills_applied": enabled_skills,
+                        "skills_applied": canonical_skills,
                         "total_files": len(targets),
                         "repaired_count": repaired_count,
-                        "audit": audit_entries,
+                        "quarantined_count": quarantined_count,
+                        "sorted_count": sorted_count,
+                        "pipeline_results": [out.to_dict() for out in pipeline_outputs],
+                        "audit": all_audit_entries,
                     }, rep_f, indent=2)
             except Exception:
                 pass
 
-            log_session(f"Recovery Skills pipeline executed: {repaired_count} files successfully restored.", "INFO")
+            log_session(f"Recovery Skills pipeline executed: {repaired_count} files successfully restored/reconstructed.", "INFO")
             self._send_json({
-                "success": True,
+                "success": all(out.success for out in pipeline_outputs) if pipeline_outputs else True,
                 "processed_count": len(targets),
                 "repaired_count": repaired_count,
-                "scanned_count": scanned_count,
+                "scanned_count": quarantined_count or len(targets),
+                "quarantined_count": quarantined_count,
                 "sorted_count": sorted_count,
-                "skills_applied": enabled_skills,
+                "skills_applied": canonical_skills,
                 "dest_dir": dest_dir,
                 "report_file": skills_manifest_path,
-                "message": f"Successfully applied recovery skills to {repaired_count} files!",
+                "pipeline_results": [out.to_dict() for out in pipeline_outputs],
+                "message": f"Successfully applied recovery skills to {len(targets)} files ({repaired_count} repaired)!",
             })
 
         elif path == "/api/terminal_command":
@@ -1595,19 +1610,49 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
                 log_session("Scan paused via CLI terminal.", "WARN")
                 output_lines = ["[*] Recovery scan paused."]
             elif cmd_name == "skills":
-                output_lines = [
-                    "=== Recovery Skills Workspace Engine ===",
-                    "  [✓] Repair Corrupted Files      - Byte-level magic header reconstructor",
-                    "  [✓] Restore After Bad Backup    - Fix truncated files from interrupted sync",
-                    "  [✓] Open With Alternative Apps  - Suggested viewers for partial data",
-                    "  [✓] File Type Conversion        - Universal format transcoding",
-                    "  [✓] Identify Unknown Types      - Deep hex signature inspection",
-                    "  [✓] Rebuild Incomplete Files    - Cluster stitching & zero-fill patching",
-                    "  [✓] Data Extraction (Carver)    - Raw carving for orphan sectors",
-                    "  [✓] Virus & Threat Heuristics   - Payload scan for repaired binaries",
-                    "  [✓] Secure & Encrypt            - AES-256 container encryption",
-                    "  [✓] Smart Sort & Categorization - Automatic folder sorting",
-                ]
+                sub = cmd_args[0].lower() if cmd_args else "list"
+                if sub == "list":
+                    all_skills = GLOBAL_REGISTRY.list_all_skills()
+                    output_lines = [
+                        f"=== Recovery Skills Catalog ({len(all_skills)} Registered Modules) ===",
+                    ]
+                    for s in all_skills:
+                        rollout_info = f"weight: {s['rollout']['weight']}%"
+                        output_lines.append(f"  [✓] {s['id']:<30} v{s['version']} ({rollout_info}) - {s['name']}")
+                elif sub == "test" and len(cmd_args) > 1:
+                    target_id = cmd_args[1]
+                    m = GLOBAL_REGISTRY.get_skill_manifest(target_id)
+                    if m:
+                        health_map = GLOBAL_EXECUTOR.check_all_health()
+                        h = health_map.get(target_id, {})
+                        output_lines = [
+                            f"=== Skill Test: {target_id} ===",
+                            f"  Status    : {h.get('status', 'UNKNOWN')}",
+                            f"  Version   : {m.version}",
+                            f"  Circuit   : {h.get('circuit_breaker_state', 'CLOSED')}",
+                            f"  Uptime    : {h.get('uptime_seconds', 0)}s",
+                            f"  Entrypoint: {m.runtime.entrypoint}",
+                        ]
+                    else:
+                        output_lines = [f"[!] Skill not found in registry: '{target_id}'"]
+                elif sub == "rollout" and len(cmd_args) > 2:
+                    target_id = cmd_args[1]
+                    try:
+                        w = int(cmd_args[2])
+                        m = GLOBAL_REGISTRY.get_skill_manifest(target_id)
+                        if m and GLOBAL_REGISTRY.update_rollout_weight(target_id, m.version, w):
+                            output_lines = [f"[+] Updated rollout weight for {target_id} v{m.version} to {w}%"]
+                        else:
+                            output_lines = [f"[!] Failed to update rollout for {target_id}"]
+                    except ValueError:
+                        output_lines = ["[!] Rollout weight must be an integer (0-100)"]
+                else:
+                    output_lines = [
+                        "Recovery Skills Usage:",
+                        "  skills list                 - List all registered skills and canary weights",
+                        "  skills test <skill_id>      - Query health status and circuit state",
+                        "  skills rollout <id> <0-100> - Set canary rollout traffic weight",
+                    ]
             elif cmd_name in ("version", "ver", "-v", "--version"):
                 output_lines = [
                     "Drive Rescue v1.0.0",

@@ -1,0 +1,19 @@
+{
+  "id": "type-conversion-engine",
+  "name": "Type Conversion Engine",
+  "version": "1.0.0",
+  "contract_version": "v1.0.0",
+  "description": "Transcode damaged proprietary documents to resilient Plain Text, CSV, or Markdown.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "extensions": [".docx", ".doc", ".xlsx", ".numbers", ".pages", ".rtf"],
+    "always_available": false
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.type_conversion_engine.skill:TypeConversionEngineSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": { "strategy": "direct", "weight": 100, "is_active": true },
+  "capabilities": ["document_transcoding", "plain_text_salvage"]
+}

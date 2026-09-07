@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DriveRescueSkillContract",
+  "version": "v1.0.0",
+  "type": "object",
+  "definitions": {
+    "SkillInput": {
+      "type": "object",
+      "required": [
+        "skill_id",
+        "files",
+        "destination_dir"
+      ],
+      "properties": {
+        "skill_id": {
+          "type": "string"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "real_path": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "path": {
+                "type": "string"
+              },
+              "size_bytes": {
+                "type": "integer"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "Good",
+                  "Partial",
+                  "Failed"
+                ]
+              },
+              "mime_type": {
+                "type": "string"
+              },
+              "is_folder": {
+                "type": "boolean"
+              },
+              "is_app": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "destination_dir": {
+          "type": "string"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "trace_id": {
+          "type": "string"
+        },
+        "contract_version": {
+          "type": "string"
+        },
+        "timeout_ms": {
+          "type": "integer"
+        },
+        "options": {
+          "type": "object"
+        }
+      }
+    },
+    "SkillOutput": {
+      "type": "object",
+      "required": [
+        "success",
+        "skill_id",
+        "skill_version",
+        "contract_version",
+        "processed_files"
+      ],
+      "properties": {
+        "success": {
+          "type": "boolean"
+        },
+        "skill_id": {
+          "type": "string"
+        },
+        "skill_version": {
+          "type": "string"
+        },
+        "contract_version": {
+          "type": "string"
+        },
+        "processed_files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "file_id",
+              "original_name",
+              "output_path",
+              "status"
+            ],
+            "properties": {
+              "file_id": {
+                "type": "integer"
+              },
+              "original_name": {
+                "type": "string"
+              },
+              "output_name": {
+                "type": "string"
+              },
+              "output_path": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              },
+              "bytes_recovered": {
+                "type": "integer"
+              },
+              "actions_taken": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "repaired_count": {
+          "type": "integer"
+        },
+        "quarantined_count": {
+          "type": "integer"
+        },
+        "sorted_count": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}

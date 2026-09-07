@@ -1,0 +1,24 @@
+{
+  "id": "restore-backup-versions",
+  "name": "Restore Previous Versions",
+  "version": "1.1.0",
+  "contract_version": "v1.0.0",
+  "description": "Recover shadow copies, previous file states, and rollback journal records before corruption.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "file_statuses": ["Partial", "Failed"],
+    "always_available": false
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.restore_backup_versions.skill:RestoreBackupVersionsSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": {
+    "strategy": "canary",
+    "weight": 100,
+    "fallback_version": "1.0.0",
+    "is_active": true
+  },
+  "capabilities": ["shadow_copy_extraction", "journal_rollback", "snapshot_inspection"]
+}

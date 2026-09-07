@@ -1,0 +1,65 @@
+name: Skills & Contract CI
+
+on:
+  push:
+    branches: [ main, package-refactor-ci ]
+    paths:
+      - 'skills/**'
+      - 'drive_rescue/contract/**'
+      - 'drive_rescue/registry/**'
+      - 'drive_rescue/runtime/**'
+      - 'tests/**'
+      - '.github/workflows/skills-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'skills/**'
+      - 'drive_rescue/contract/**'
+      - 'drive_rescue/registry/**'
+      - 'drive_rescue/runtime/**'
+      - 'tests/**'
+      - '.github/workflows/skills-ci.yml'
+
+jobs:
+  conformance:
+    name: Contract Conformance & Resiliency Matrix (Py ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Validate JSON Manifests & Schema
+        run: |
+          python3 -c "
+          import json, glob
+          for p in glob.glob('skills/**/skill-manifest.json', recursive=True):
+              with open(p) as f:
+                  m = json.load(f)
+                  assert 'id' in m and 'version' in m and 'contract_version' in m, f'Invalid manifest: {p}'
+                  print(f'Valid manifest: {m[\"id\"]} v{m[\"version\"]}')
+          "
+
+      - name: Run Contract Conformance Tests
+        run: |
+          python -m unittest tests.test_skill_conformance -v
+
+      - name: Run Circuit Breaker & Fallback Tests
+        run: |
+          python -m unittest tests.test_circuit_breaker -v
+
+      - name: Run Dynamic Registry & Canary Tests
+        run: |
+          python -m unittest tests.test_skill_registry -v
+
+      - name: Run Core Test Suite & QA Benchmark
+        run: |
+          python -m unittest tests.test_suite -v
+          python tests/qa_benchmark.py

@@ -1,0 +1,19 @@
+{
+  "id": "open-in-alternative-apps",
+  "name": "Open in Alternative App",
+  "version": "1.0.0",
+  "contract_version": "v1.0.0",
+  "description": "Convert proprietary formats to open-standard structures accessible by LibreOffice, VLC, and text editors.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "file_statuses": ["Partial", "Failed", "Good"],
+    "always_available": true
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.open_in_alternative_apps.skill:OpenInAlternativeAppsSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": { "strategy": "direct", "weight": 100, "is_active": true },
+  "capabilities": ["format_transcoding", "open_standard_export"]
+}

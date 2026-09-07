@@ -1,0 +1,19 @@
+{
+  "id": "raw-cluster-carving",
+  "name": "Raw Carving & Reconstruction",
+  "version": "1.1.0",
+  "contract_version": "v1.0.0",
+  "description": "Deep raw sector carver extracting orphan files by binary headers and trailers.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "file_statuses": ["Failed"],
+    "always_available": false
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.raw_cluster_carving.skill:RawClusterCarvingSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": { "strategy": "direct", "weight": 100, "is_active": true },
+  "capabilities": ["raw_carving", "header_trailer_matching", "signature_scan"]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "secure-archive-encryption",
+  "name": "Secure Archive & Encrypt",
+  "version": "1.0.0",
+  "contract_version": "v1.0.0",
+  "description": "Package recovered data into structured, hash-verified, compressed forensic archives.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "always_available": true
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.secure_archive_encryption.skill:SecureArchiveEncryptionSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": { "strategy": "direct", "weight": 100, "is_active": true },
+  "capabilities": ["zip_packaging", "forensic_container", "integrity_manifest"]
+}

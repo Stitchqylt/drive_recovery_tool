@@ -1,0 +1,19 @@
+{
+  "id": "identify-unknown-file-types",
+  "name": "Identify Unknown File Types",
+  "version": "1.1.0",
+  "contract_version": "v1.0.0",
+  "description": "Inspect magic signatures, entropy distribution, and binary headers to identify lost file extensions.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "extensions": ["", ".bin", ".dat", ".tmp", ".raw"],
+    "always_available": false
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.identify_unknown_file_types.skill:IdentifyUnknownFileTypesSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": { "strategy": "direct", "weight": 100, "is_active": true },
+  "capabilities": ["magic_byte_identification", "entropy_analysis", "mime_classification"]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "repair-corrupted-files",
+  "name": "Repair Corrupted Files",
+  "version": "1.2.0",
+  "contract_version": "v1.0.0",
+  "description": "Fix corrupted magic bytes, repair damaged file headers (PNG, PDF, SQLite, JPG, ZIP), and zero-fill damaged blocks.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "file_statuses": ["Partial", "Failed"],
+    "extensions": [".png", ".jpg", ".jpeg", ".pdf", ".sqlite", ".db", ".zip", ".docx", ".xlsx"],
+    "always_available": false
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.repair_corrupted_files.skill:RepairCorruptedFilesSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": {
+    "strategy": "canary",
+    "weight": 100,
+    "fallback_version": "1.0.0",
+    "is_active": true
+  },
+  "capabilities": ["magic_byte_repair", "header_reconstruction", "png_chunk_fix", "pdf_trailer_recovery"]
+}

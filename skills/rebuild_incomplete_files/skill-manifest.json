@@ -1,0 +1,19 @@
+{
+  "id": "rebuild-incomplete-files",
+  "name": "Rebuild Incomplete Files",
+  "version": "1.0.0",
+  "contract_version": "v1.0.0",
+  "description": "Zero-fill unreadable bad sectors and reconstruct internal file tables and media streams.",
+  "author": "Drive Rescue Core Team",
+  "triggers": {
+    "file_statuses": ["Partial", "Failed"],
+    "always_available": false
+  },
+  "runtime": {
+    "type": "python_module",
+    "entrypoint": "skills.rebuild_incomplete_files.skill:RebuildIncompleteFilesSkill",
+    "timeout_ms": 30000
+  },
+  "rollout": { "strategy": "direct", "weight": 100, "is_active": true },
+  "capabilities": ["zero_fill_reconstruction", "bad_block_padding", "stream_stitching"]
+}

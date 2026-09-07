@@ -41,7 +41,92 @@ def format_bytes(num_bytes: int) -> str:
     return f"{num_bytes:.2f} PB"
 
 
+def handle_skills_cli(argv: List[str]) -> int:
+    """Handles skills CLI commands: list, test, rollout."""
+    from drive_rescue.registry import GLOBAL_REGISTRY
+    from drive_rescue.runtime.executor import GLOBAL_EXECUTOR
+
+    skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
+    GLOBAL_REGISTRY.discover_directory(skills_dir)
+
+    subcmd = argv[0].lower() if argv else "list"
+
+    if subcmd == "list":
+        skills = GLOBAL_REGISTRY.list_all_skills()
+        print("\n" + "=" * 76)
+        print(" DRIVE RESCUE - DECOUPLED RECOVERY SKILLS CATALOG")
+        print("=" * 76)
+        print(f" {'ID':<30} {'VERSION':<10} {'WEIGHT':<8} {'STATUS'}")
+        print("-" * 76)
+        health_map = GLOBAL_EXECUTOR.check_all_health()
+        for s in skills:
+            s_id = s["id"]
+            ver = s["version"]
+            wt = f"{s['rollout']['weight']}%"
+            h_stat = health_map.get(s_id, {}).get("status", "OK")
+            print(f" {s_id:<30} {ver:<10} {wt:<8} {h_stat}")
+            print(f"   -> {s['description']}")
+            triggers_ext = s['triggers']['extensions'][:5] if s['triggers']['extensions'] else ['*']
+            print(f"   -> Triggers: {s['triggers']['file_statuses']}, Exts: {triggers_ext}")
+        print("=" * 76 + "\n")
+        return 0
+
+    elif subcmd == "test":
+        if len(argv) < 2:
+            print("[!] Usage: python3 cli.py skills test <skill_id>")
+            return 1
+        skill_id = argv[1]
+        manifest = GLOBAL_REGISTRY.get_skill_manifest(skill_id)
+        if not manifest:
+            print(f"[X] Skill '{skill_id}' not found in registry.")
+            return 1
+
+        print(f"\n[*] Testing Health & Contract Conformance for skill '{skill_id}'...")
+        health_map = GLOBAL_EXECUTOR.check_all_health()
+        h = health_map.get(skill_id, {})
+        print(f"    - Health Status: {h.get('status')}")
+        print(f"    - Version: {manifest.version}")
+        print(f"    - Circuit Breaker: {h.get('circuit_breaker_state', 'CLOSED')}")
+        print(f"    - Entrypoint: {manifest.runtime.entrypoint}")
+        print(f"    - Capabilities: {', '.join(manifest.capabilities)}")
+        print("[+] Skill check complete.\n")
+        return 0
+
+    elif subcmd == "rollout":
+        if len(argv) < 3:
+            print("[!] Usage: python3 cli.py skills rollout <skill_id> --weight <pct>")
+            return 1
+        skill_id = argv[1]
+        weight = 100
+        for i, a in enumerate(argv):
+            if a in ("--weight", "-w") and i + 1 < len(argv):
+                try:
+                    weight = int(argv[i + 1])
+                except ValueError:
+                    print("[X] Weight must be an integer (0-100)")
+                    return 1
+            elif a.isdigit() and i > 1:
+                weight = int(a)
+
+        manifest = GLOBAL_REGISTRY.get_skill_manifest(skill_id)
+        if not manifest:
+            print(f"[X] Skill '{skill_id}' not found.")
+            return 1
+        if GLOBAL_REGISTRY.update_rollout_weight(skill_id, manifest.version, weight):
+            print(f"[+] Canary rollout weight for '{skill_id}' v{manifest.version} updated to {weight}%.")
+            return 0
+        else:
+            print(f"[X] Failed to update rollout weight for '{skill_id}'.")
+            return 1
+    else:
+        print(f"[X] Unknown skills subcommand '{subcmd}'. Available: list, test, rollout")
+        return 1
+
+
 def parse_args():
+    if len(sys.argv) > 1 and sys.argv[1].lower() == "skills":
+        sys.exit(handle_skills_cli(sys.argv[2:]))
+
     parser = argparse.ArgumentParser(description="Non-Freezing Raw NTFS Disk File Recovery Tool (Industry Pro)")
     parser.add_argument("--drive", type=str, help="Physical drive number (e.g. 1) or disk image path")
     parser.add_argument("--partition", type=int, default=None, help="Partition index (1-based)")
