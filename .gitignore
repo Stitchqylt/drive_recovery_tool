@@ -16,6 +16,7 @@ recovered_files/
 *.tmp
 *.log
 *.csv
+*.img
 
 # OS specific
 .DS_Store
