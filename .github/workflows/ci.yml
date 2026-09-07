@@ -1,0 +1,33 @@
+# CI workflow: run unit tests and build package on pushes and PRs
+name: CI
+
+on:
+  push:
+    branches: [ main, package-refactor-ci ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+      - name: Run unit tests
+        run: |
+          python -m unittest tests.test_suite -v
+      - name: Build wheel
+        run: |
+          python -m build --wheel
