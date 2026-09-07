@@ -1,15 +1,10 @@
 #!/usr/bin/env python3
 """
-setup.py - Standard setup script for Drive Rescue.
-Enables `pip install .` and `pip install -e .` across all Python environments.
+setup.py - Standard setup script for Drive Rescue (packaged as drive_rescue).
 """
 
 import os
-try:
-    from setuptools import setup, find_packages
-except ImportError:
-    from distutils.core import setup
-    find_packages = lambda: []
+from setuptools import setup, find_packages
 
 here = os.path.abspath(os.path.dirname(__file__))
 
@@ -22,14 +17,15 @@ setup(
     description="Zero-Freeze, Non-Destructive Raw Physical Drive & NTFS Live File Recovery Engine",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Drive Rescue Contributors",
+    author="Stitchqylt",
     author_email="support@drive-rescue.dev",
-    url="https://github.com/drive-rescue/drive-rescue",
+    url="https://github.com/Stitchqylt/drive_recovery_tool",
     license="MIT",
+    packages=find_packages(exclude=("tests", "tools", "recovered_test_files")),
     py_modules=[
-        "__init__",
-        "__main__",
         "main",
+        "cli",
+        "gui",
         "diskio",
         "partitions",
         "ntfs",
@@ -41,9 +37,8 @@ setup(
         "health",
         "hash_verify",
         "report",
-        "cli",
-        "gui",
         "dashboard",
+        "drive_rescue",
     ],
     include_package_data=True,
     package_data={
