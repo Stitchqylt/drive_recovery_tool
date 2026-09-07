@@ -13,6 +13,7 @@ from .contract import (
     SkillOutput,
     validate_input_contract,
     validate_output_contract,
+    validate_manifest_contract,
     generate_json_schema,
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "SkillOutput",
     "validate_input_contract",
     "validate_output_contract",
+    "validate_manifest_contract",
     "generate_json_schema",
 ]

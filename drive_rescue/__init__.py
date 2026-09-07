@@ -8,7 +8,7 @@ from importlib import import_module
 
 __version__ = "1.0.0"
 
-# Import core modules dynamically from top-level module names and expose them
+# Import core modules dynamically, trying package-qualified import first
 _core_modules = [
     "main",
     "cli",
@@ -25,14 +25,20 @@ _core_modules = [
     "hash_verify",
     "report",
     "dashboard",
+    "contract",
+    "registry",
+    "runtime",
 ]
 
+pkg_prefix = __name__ + "."
 for _m in _core_modules:
     try:
-        globals()[_m] = import_module(_m)
+        globals()[_m] = import_module(pkg_prefix + _m)
     except Exception:
-        # If the top-level module is not present yet, skip — compat wrappers will still work
-        globals()[_m] = None
+        try:
+            globals()[_m] = import_module(_m)
+        except Exception:
+            globals()[_m] = None
 
 # Expose convenient top-level names
 try:

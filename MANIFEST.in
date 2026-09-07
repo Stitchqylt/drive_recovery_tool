@@ -8,3 +8,7 @@ include *.bat
 include *.sh
 include *.ps1
 recursive-include tests *.py
+recursive-include drive_rescue/contract/schemas *.json
+recursive-include skills *.py *.json
+include SKILLS_ARCHITECTURE.md
+include PACKAGING.md

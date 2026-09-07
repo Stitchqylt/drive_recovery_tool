@@ -341,3 +341,47 @@ def generate_json_schema() -> Dict[str, Any]:
             }
         }
     }
+
+
+def validate_manifest_contract(data: Dict[str, Any]) -> List[str]:
+    """Validates raw dict against SkillManifest specification."""
+    errors = []
+    if not isinstance(data, dict):
+        return ["Manifest must be a JSON object"]
+
+    required_keys = ["id", "name", "version", "contract_version", "description", "author", "triggers", "runtime", "rollout", "capabilities"]
+    for k in required_keys:
+        if k not in data or data[k] is None:
+            errors.append(f"Manifest field '{k}' is required")
+
+    # Validate runtime spec
+    runtime = data.get("runtime")
+    if not isinstance(runtime, dict):
+        errors.append("Manifest 'runtime' must be an object")
+    else:
+        if "type" not in runtime or runtime["type"] not in ("python_module", "http", "wasm"):
+            errors.append("runtime.type must be one of ['python_module', 'http', 'wasm']")
+        if runtime.get("type") == "python_module" and not runtime.get("entrypoint"):
+            errors.append("runtime.entrypoint is required for python_module")
+
+    # Validate rollout spec
+    rollout = data.get("rollout")
+    if not isinstance(rollout, dict):
+        errors.append("Manifest 'rollout' must be an object")
+    else:
+        if "strategy" not in rollout:
+            errors.append("rollout.strategy is required")
+        if "weight" not in rollout or not isinstance(rollout["weight"], int) or not (0 <= rollout["weight"] <= 100):
+            errors.append("rollout.weight must be an integer between 0 and 100")
+
+    # Validate triggers
+    triggers = data.get("triggers")
+    if not isinstance(triggers, dict):
+        errors.append("Manifest 'triggers' must be an object")
+
+    # Validate capabilities
+    capabilities = data.get("capabilities")
+    if not isinstance(capabilities, list):
+        errors.append("Manifest 'capabilities' must be an array of strings")
+
+    return errors

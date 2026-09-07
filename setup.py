@@ -43,8 +43,14 @@ setup(
     include_package_data=True,
     package_data={
         "": ["dashboard.html", "*.png", "*.ico", "*.md", "*.bat", "*.sh"],
+        "drive_rescue": ["contract/schemas/*.json"],
+        "skills": ["*/*.json", "*/*.py"],
     },
     install_requires=[],
+    extras_require={
+        "test": ["build"],
+        "dev": ["build"],
+    },
     python_requires=">=3.8",
     entry_points={
         "console_scripts": [

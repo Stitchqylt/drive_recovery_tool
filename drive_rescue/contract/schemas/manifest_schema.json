@@ -1,0 +1,140 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DriveRescueSkillManifestSchema",
+  "version": "v1.0.0",
+  "type": "object",
+  "required": [
+    "id",
+    "name",
+    "version",
+    "contract_version",
+    "description",
+    "author",
+    "triggers",
+    "runtime",
+    "rollout",
+    "capabilities"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+"
+    },
+    "contract_version": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "author": {
+      "type": "string"
+    },
+    "triggers": {
+      "type": "object",
+      "properties": {
+        "file_statuses": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "mime_types": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "always_available": {
+          "type": "boolean"
+        }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "python_module",
+            "http",
+            "wasm"
+          ]
+        },
+        "entrypoint": {
+          "type": "string"
+        },
+        "endpoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "artifact_uri": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "timeout_ms": {
+          "type": "integer"
+        }
+      }
+    },
+    "rollout": {
+      "type": "object",
+      "required": [
+        "strategy",
+        "weight"
+      ],
+      "properties": {
+        "strategy": {
+          "type": "string",
+          "enum": [
+            "canary",
+            "blue_green",
+            "direct"
+          ]
+        },
+        "weight": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "fallback_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "is_active": {
+          "type": "boolean"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "metadata": {
+      "type": "object"
+    }
+  }
+}

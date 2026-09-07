@@ -36,15 +36,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install Dependencies & Package
+        run: |
+          python -m pip install --upgrade pip setuptools wheel build
+          pip install -e .
+
       - name: Validate JSON Manifests & Schema
         run: |
           python3 -c "
           import json, glob
+          from drive_rescue.contract import validate_manifest_contract
           for p in glob.glob('skills/**/skill-manifest.json', recursive=True):
-              with open(p) as f:
+              with open(p, 'r', encoding='utf-8') as f:
                   m = json.load(f)
-                  assert 'id' in m and 'version' in m and 'contract_version' in m, f'Invalid manifest: {p}'
-                  print(f'Valid manifest: {m[\"id\"]} v{m[\"version\"]}')
+              errs = validate_manifest_contract(m)
+              assert not errs, f'Manifest {p} validation failed: {errs}'
+              print(f'Valid manifest: {m[\"id\"]} v{m[\"version\"]}')
+          "
+
+      - name: Verify Packaged Skill Imports
+        run: |
+          python3 -c "
+          import skills.repair_corrupted_files.skill
+          import skills.smart_sorter_reorganizer.skill
+          print('Packaged skills imported successfully!')
           "
 
       - name: Run Contract Conformance Tests
