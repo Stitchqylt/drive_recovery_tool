@@ -39,20 +39,12 @@ jobs:
       - name: Install Dependencies & Package
         run: |
           python -m pip install --upgrade pip setuptools wheel build
+          pip install -r requirements-dev.txt
           pip install -e .
 
-      - name: Validate JSON Manifests & Schema
+      - name: Strict Manifest & Schema Conformance Check
         run: |
-          python3 -c "
-          import json, glob
-          from drive_rescue.contract import validate_manifest_contract
-          for p in glob.glob('skills/**/skill-manifest.json', recursive=True):
-              with open(p, 'r', encoding='utf-8') as f:
-                  m = json.load(f)
-              errs = validate_manifest_contract(m)
-              assert not errs, f'Manifest {p} validation failed: {errs}'
-              print(f'Valid manifest: {m[\"id\"]} v{m[\"version\"]}')
-          "
+          python tools/validate_manifests.py
 
       - name: Verify Packaged Skill Imports
         run: |
@@ -73,6 +65,10 @@ jobs:
       - name: Run Dynamic Registry & Canary Tests
         run: |
           python -m unittest tests.test_skill_registry -v
+
+      - name: Run End-to-End Isolated Process Smoke Tests
+        run: |
+          python -m unittest tests.test_e2e_smoke -v
 
       - name: Run Core Test Suite & QA Benchmark
         run: |

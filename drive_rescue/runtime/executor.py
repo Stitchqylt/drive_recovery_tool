@@ -5,8 +5,12 @@ Executes skills with schema validation, deadline enforcement, circuit breakers,
 canary routing, and automatic fallback to stable versions.
 """
 
+import os
+import sys
+import json
 import time
 import importlib
+import subprocess
 import threading
 from typing import Dict, Any, List, Optional
 
@@ -74,8 +78,9 @@ class SkillExecutor:
     circuit breakers, canary weighting, and fallback execution.
     """
 
-    def __init__(self, registry: Optional[SkillRegistry] = None):
+    def __init__(self, registry: Optional[SkillRegistry] = None, execution_mode: str = "in_process"):
         self.registry = registry or GLOBAL_REGISTRY
+        self.execution_mode = execution_mode  # "in_process" or "isolated_process"
         self._circuit_breakers: Dict[str, CircuitBreaker] = {}
         self._skill_cache: Dict[str, BaseSkill] = {}
         self._lock = threading.Lock()
@@ -200,8 +205,96 @@ class SkillExecutor:
 
         return output
 
+    def _invoke_isolated_process(self, manifest: SkillManifest, input_payload: SkillInput, start_time: float) -> SkillOutput:
+        """Executes a skill inside an isolated worker subprocess with strict timeout containment."""
+        timeout_s = (input_payload.timeout_ms or manifest.runtime.timeout_ms or 30000) / 1000.0
+        payload_dict = input_payload.to_dict()
+        if "options" not in payload_dict or not isinstance(payload_dict["options"], dict):
+            payload_dict["options"] = {}
+        payload_dict["options"]["_entrypoint"] = manifest.runtime.entrypoint
+
+        cmd = [sys.executable, "-m", "drive_rescue.runtime.worker_runner"]
+        proc = None
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            stdout, stderr = proc.communicate(input=json.dumps(payload_dict), timeout=timeout_s)
+
+            if proc.returncode != 0:
+                return SkillOutput(
+                    success=False,
+                    skill_id=manifest.id,
+                    skill_version=manifest.version,
+                    session_id=input_payload.session_id,
+                    trace_id=input_payload.trace_id,
+                    error=SkillError(
+                        code="PROCESS_CRASHED",
+                        message=f"Worker process crashed with code {proc.returncode}: {stderr.strip()}",
+                        retryable=True,
+                    )
+                )
+
+            # Extract json payload between delimiters
+            start_tag = "__SKILL_RESULT_JSON_START__"
+            end_tag = "__SKILL_RESULT_JSON_END__"
+            if start_tag in stdout and end_tag in stdout:
+                json_str = stdout.split(start_tag, 1)[1].split(end_tag, 1)[0].strip()
+            else:
+                json_str = stdout.strip()
+
+            out_dict = json.loads(json_str)
+            output = SkillOutput.from_dict(out_dict)
+
+            elapsed_ms = round((time.time() - start_time) * 1000.0, 2)
+            output.metrics.duration_ms = elapsed_ms
+            output.metrics.files_total = len(input_payload.files)
+            output.metrics.files_succeeded = len([p for p in output.processed_files if p.status == "OK"])
+            output.metrics.files_failed = len([p for p in output.processed_files if p.status == "FAILED"])
+            return output
+
+        except subprocess.TimeoutExpired:
+            if proc:
+                try:
+                    proc.kill()
+                    proc.communicate()
+                except Exception:
+                    pass
+            return SkillOutput(
+                success=False,
+                skill_id=manifest.id,
+                skill_version=manifest.version,
+                session_id=input_payload.session_id,
+                trace_id=input_payload.trace_id,
+                error=SkillError(
+                    code="TIMEOUT_EXCEEDED",
+                    message=f"Worker execution exceeded deadline of {timeout_s}s",
+                    retryable=False,
+                )
+            )
+        except Exception as ex:
+            return SkillOutput(
+                success=False,
+                skill_id=manifest.id,
+                skill_version=manifest.version,
+                session_id=input_payload.session_id,
+                trace_id=input_payload.trace_id,
+                error=SkillError(
+                    code="ISOLATION_INVOCATION_ERROR",
+                    message=f"Failed to execute isolated process: {ex}",
+                    retryable=True,
+                )
+            )
+
     def _invoke_manifest(self, manifest: SkillManifest, input_payload: SkillInput, start_time: float) -> SkillOutput:
-        """Internal invocation of a specific skill manifest."""
+        """Internal invocation of a specific skill manifest with isolation routing."""
+        if self.execution_mode == "isolated_process" and manifest.runtime.type == "python_module":
+            return self._invoke_isolated_process(manifest, input_payload, start_time)
+
         instance = self._load_skill_instance(manifest)
         if not instance:
             return SkillOutput(

@@ -1,0 +1,4 @@
+# Development, packaging, and CI testing dependencies
+build>=1.0.0
+wheel>=0.40.0
+setuptools>=61.0.0

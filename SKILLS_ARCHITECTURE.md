@@ -206,3 +206,56 @@ python3 cli.py skills rollout repair-corrupted-files --weight 50
    ```bash
    python3 -m unittest tests.test_skill_conformance -v
    ```
+
+---
+
+## 9. Isolated Process Worker Execution & Sandboxing
+
+For production stability and fault tolerance, `SkillExecutor` supports isolated child process execution:
+
+```
+ Host Process (SkillExecutor)
+       │
+       │ Spawns isolated worker with deadline (e.g. 30s)
+       ▼
+ ┌─────────────────────────────────────────────────────────────┐
+ │ Child Process: drive_rescue.runtime.worker_runner           │
+ │                                                             │
+ │   1. Reads JSON SkillInput from stdin                       │
+ │   2. Dynamically loads target skill entrypoint              │
+ │   3. Executes validate_and_execute()                        │
+ │   4. Serializes SkillOutput JSON to stdout                  │
+ └─────────────────────────────────────────────────────────────┘
+       │
+       │ If runtime exceeds timeout -> Host kills process (SIGKILL)
+       │ If process crashes -> Host captures code & isolates failure
+       ▼
+ Host Process Resumes (Host never crashes)
+```
+
+To configure:
+```python
+executor = SkillExecutor(execution_mode="isolated_process")
+```
+
+---
+
+## 10. Production Release Checklist
+
+Before tagging and releasing a new version:
+- [x] **Packaging Discovery**: Verify `pyproject.toml` and `setup.py` discover and install `skills/` and `drive_rescue/` packages cleanly in a wheel build.
+- [x] **Contract Conformance**: Run `python tools/validate_manifests.py` to ensure 100% manifest and schema compliance.
+- [x] **Resilience & Breakers**: Run `python -m unittest tests.test_circuit_breaker -v`.
+- [x] **Isolation Smoke Test**: Run `python -m unittest tests.test_e2e_smoke -v`.
+- [x] **Full Engine QA**: Run `python tests/qa_benchmark.py` (Must score `100/100` points).
+- [x] **CI Matrix Passing**: All workflows passing across Python 3.8, 3.9, 3.10, 3.11, 3.12.
+
+---
+
+## 11. Contract Upgrade & Migration Guide (v1 &rarr; v2)
+
+When introducing breaking changes to the skill interface:
+1. Increment `CONTRACT_VERSION = "v2.0.0"` in `drive_rescue.contract`.
+2. Add `v2_schema.json` under `drive_rescue/contract/schemas/`.
+3. Skills declaring `"contract_version": "v1.0.0"` are automatically adapted via the host contract compatibility layer.
+4. Legacy skills remain operational in the registry until upgraded, enabling seamless multi-version zero-downtime migrations.

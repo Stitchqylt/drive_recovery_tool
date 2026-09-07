@@ -34,21 +34,14 @@ drive-recovery = "main:main"
 drive-rescue = "main:main"
 
 [tool.setuptools]
-py-modules = [
-    "main",
-    "raw_io",
-    "disk_layout",
-    "ntfs_parser",
-    "recovery_engine",
-    "mapfile",
-    "watchdog",
-    "multipass_scheduler",
-    "file_carver",
-    "smart_monitor",
-    "hash_verifier",
-    "audit_report",
-    "cli",
-    "gui",
-    "dashboard",
-]
 include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["drive_rescue*", "skills*"]
+exclude = ["tests*", "tools*"]
+
+[tool.setuptools.package-data]
+drive_rescue = ["contract/schemas/*.json"]
+skills = ["*/*.json", "*/*.py"]
+"*" = ["dashboard.html", "*.png", "*.ico", "*.md", "*.bat", "*.sh"]
