@@ -90,6 +90,10 @@ log_session("NTFS & MFT Parser: Fixup array (USA) and cluster chain validator re
 # Dynamic discovery of decoupled recovery skills catalog
 _skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
 _discovered_skills_count = GLOBAL_REGISTRY.discover_directory(_skills_dir)
+_ext_skills_dir = "/Users/amatuer_cyber/drive-rescue-skills/packages"
+if os.path.exists(_ext_skills_dir):
+    _ext_count = GLOBAL_REGISTRY.discover_directory(_ext_skills_dir)
+    _discovered_skills_count += _ext_count
 log_session(f"Recovery Skills Engine: Discovered & registered {_discovered_skills_count} decoupled skills in catalog.", "INFO")
 
 log_session(

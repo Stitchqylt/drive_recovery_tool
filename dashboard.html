@@ -1373,6 +1373,7 @@
     window.addEventListener('DOMContentLoaded', () => {
       fetchLiveDrives();
       fetchDestinationDrives();
+      refreshLiveSkillsHealth();
       pollLiveStatus();
       setInterval(pollLiveStatus, 500);
     });
@@ -2347,6 +2348,7 @@
 
         try {
           updateSkillsWorkspaceData();
+          refreshLiveSkillsHealth();
         } catch (err) {
           console.error("Error updating skills data:", err);
         }
@@ -2441,9 +2443,91 @@
       syncSkillCheckbox();
     }
 
+    const skillIdToCanonical = {
+      'repair_corrupt': 'repair-corrupted-files',
+      'restore_backup': 'restore-backup-versions',
+      'open_alt': 'open-in-alternative-apps',
+      'type_conversion': 'type-conversion-engine',
+      'unknown_type': 'identify-unknown-file-types',
+      'rebuild_incomplete': 'rebuild-incomplete-files',
+      'raw_extract': 'raw-cluster-carving',
+      'virus_scan': 'scan-for-malware-quarantine',
+      'secure_encrypt': 'secure-archive-encryption',
+      'smart_sort': 'smart-sorter-reorganizer'
+    };
+
+    let liveSkillsHealthMap = {};
+
+    async function refreshLiveSkillsHealth() {
+      try {
+        const res = await fetch('/api/skills/health');
+        const data = await res.json();
+        if (data.success && data.skills_health) {
+          liveSkillsHealthMap = data.skills_health;
+        }
+      } catch (e) {
+        console.warn("Could not fetch live skills health:", e);
+      }
+      updateSkillCardsAvailability();
+    }
+
+    function updateSkillCardsAvailability() {
+      allSkillIds.forEach(id => {
+        const canonical = skillIdToCanonical[id] || id;
+        const card = document.getElementById(`card_${id}`);
+        const chk = document.getElementById(`skill_${id}`);
+        const health = liveSkillsHealthMap[canonical];
+        const isLive = health && health.status === "OK" && health.circuit_breaker_state !== "OPEN";
+
+        if (!card) return;
+
+        let badgeContainer = card.querySelector('.skill-badge-container');
+        if (!badgeContainer) {
+          const lastDiv = card.querySelector('div:last-child');
+          if (lastDiv) {
+            lastDiv.classList.add('skill-badge-container');
+            badgeContainer = lastDiv;
+          }
+        }
+
+        if (!isLive) {
+          card.setAttribute('data-live', 'false');
+          card.className = "p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 opacity-45 cursor-not-allowed select-none transition flex flex-col justify-between gap-2.5 grayscale";
+          if (chk) {
+            chk.disabled = true;
+            chk.checked = false;
+          }
+          if (badgeContainer) {
+            badgeContainer.innerHTML = `<span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-500 border border-slate-300">🔴 Offline / Plugin Needed</span>`;
+          }
+        } else {
+          card.setAttribute('data-live', 'true');
+          if (chk) {
+            chk.disabled = false;
+          }
+          if (badgeContainer) {
+            const ver = health.version ? `v${health.version}` : 'v1.0';
+            const isRec = recommendedSkillIds.includes(id);
+            if (isRec) {
+              badgeContainer.innerHTML = `<span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live ${ver} • Recommended</span>`;
+            } else {
+              badgeContainer.innerHTML = `<span class="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Live ${ver}</span>`;
+            }
+          }
+          syncSkillCardVisual(id, chk ? chk.checked : false);
+        }
+      });
+      syncSkillCheckbox();
+    }
+
     function toggleSkillCard(skillId) {
+      const card = document.getElementById(`card_${skillId}`);
+      if (card && card.getAttribute('data-live') === 'false') {
+        showToast("⚠️ This skill engine is offline or pending plugin connection in skills lab.", "warning");
+        return;
+      }
       const chk = document.getElementById(`skill_${skillId}`);
-      if (!chk) return;
+      if (!chk || chk.disabled) return;
       chk.checked = !chk.checked;
       syncSkillCardVisual(skillId, chk.checked);
       syncSkillCheckbox();
@@ -2452,6 +2536,10 @@
     function syncSkillCardVisual(skillId, isChecked) {
       const card = document.getElementById(`card_${skillId}`);
       if (!card) return;
+      if (card.getAttribute('data-live') === 'false') {
+        card.className = "p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 opacity-45 cursor-not-allowed select-none transition flex flex-col justify-between gap-2.5 grayscale";
+        return;
+      }
       if (isChecked) {
         card.className = "p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5";
       } else {
@@ -2462,19 +2550,19 @@
     function syncSkillCheckbox() {
       allSkillIds.forEach(id => {
         const chk = document.getElementById(`skill_${id}`);
-        if (chk) {
+        if (chk && !chk.disabled) {
           syncSkillCardVisual(id, chk.checked);
         }
       });
 
-      // Update outcomes bullet list based on checked skills
+      // Update outcomes bullet list based on checked live skills
       const outcomes = [];
       const isCorrupt = document.getElementById('skill_repair_corrupt')?.checked || document.getElementById('skill_restore_backup')?.checked;
       const isApp = document.getElementById('skill_open_alt')?.checked || document.getElementById('skill_type_conversion')?.checked;
       const isType = document.getElementById('skill_unknown_type')?.checked || document.getElementById('skill_raw_extract')?.checked;
       const isScan = document.getElementById('skill_virus_scan')?.checked || document.getElementById('skill_smart_sort')?.checked || document.getElementById('skill_secure_encrypt')?.checked;
 
-      if (isCorrupt) outcomes.push("Repair damaged or corrupted files");
+      if (isCorrupt) outcomes.push("Repair damaged or corrupted files (Live Engine)");
       if (isApp) outcomes.push("Use the right applications or convert formats");
       if (isType) outcomes.push("Identify unknown file types");
       if (isScan) outcomes.push("Scan, secure and organize recovered files");
@@ -2494,14 +2582,18 @@
 
     function applyAiRecommendation() {
       allSkillIds.forEach(id => {
+        const card = document.getElementById(`card_${id}`);
         const chk = document.getElementById(`skill_${id}`);
-        if (chk) {
+        const isLive = card && card.getAttribute('data-live') !== 'false';
+        if (chk && !chk.disabled && isLive) {
           chk.checked = recommendedSkillIds.includes(id);
           syncSkillCardVisual(id, chk.checked);
+        } else if (chk) {
+          chk.checked = false;
         }
       });
       syncSkillCheckbox();
-      showToast("🪄 AI recommendations applied: 6 specialized skills enabled");
+      showToast("🪄 AI recommendations applied to live active skills");
     }
 
     async function executeSkillsRecovery() {
