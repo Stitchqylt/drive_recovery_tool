@@ -1239,8 +1239,14 @@
 
   <!-- MODAL 6.5: Live Deep Binary Repair Progress Modal -->
   <div id="skillsProgressModal" class="hidden fixed inset-0 modal-overlay flex items-center justify-center p-4 z-50">
-    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
-      <div class="flex items-center gap-3">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4 relative">
+      
+      <!-- Top-right Close / Abort Button (Matches user request) -->
+      <button onclick="abortSkillsRecovery()" class="absolute top-4 right-4 w-7 h-7 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 flex items-center justify-center text-xs font-bold transition active:scale-95 cursor-pointer" title="Close and Abort Processing">
+        ✕
+      </button>
+
+      <div class="flex items-center gap-3 pr-8">
         <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg animate-spin">
           ⚙️
         </div>
@@ -1264,6 +1270,15 @@
       <!-- Live Stream Console Log -->
       <div class="p-3 rounded-xl bg-slate-900 text-slate-200 font-mono text-[11px] space-y-1 h-32 overflow-y-auto" id="skillsProgressLog">
         <div class="text-emerald-400">[*] Dispatching files to skill-repair-corrupted-files v2.0.0...</div>
+      </div>
+
+      <!-- Footer Action Area with Abort Button -->
+      <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+        <div class="text-[11px] text-slate-400">Click Abort to cancel processing safely.</div>
+        <button onclick="abortSkillsRecovery()" class="px-3.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition active:scale-95 flex items-center gap-1.5 cursor-pointer shadow-xs">
+          <svg class="w-3.5 h-3.5 text-rose-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <span>Abort Processing</span>
+        </button>
       </div>
     </div>
   </div>
@@ -2687,7 +2702,33 @@
       showToast("🪄 AI recommendations applied to live active skills");
     }
 
+    let skillsAbortController = null;
+    let skillsTimeoutHandles = [];
+
+    function abortSkillsRecovery() {
+      if (skillsAbortController) {
+        skillsAbortController.abort();
+        skillsAbortController = null;
+      }
+      skillsTimeoutHandles.forEach(h => clearTimeout(h));
+      skillsTimeoutHandles = [];
+
+      const pModal = document.getElementById('skillsProgressModal');
+      if (pModal) {
+        pModal.classList.add('hidden');
+      }
+      showToast("🛑 File repair processing aborted by user.", "warning");
+    }
+
     async function executeSkillsRecovery() {
+      // Clear any prior abort controller / timers
+      if (skillsAbortController) {
+        skillsAbortController.abort();
+      }
+      skillsTimeoutHandles.forEach(h => clearTimeout(h));
+      skillsTimeoutHandles = [];
+      skillsAbortController = new AbortController();
+
       const enabled = allSkillIds.filter(id => document.getElementById(`skill_${id}`)?.checked);
       const dest = document.getElementById('destDirInput')?.value || 'recovered_files';
       const damagedFiles = activeFiles.filter(f => f.status === 'Partial' || f.status === 'Failed');
@@ -2711,7 +2752,7 @@
 
       try {
         if (pLog) {
-          setTimeout(() => {
+          const t1 = setTimeout(() => {
             if (pBar) pBar.style.width = '55%';
             if (pPct) pPct.innerText = '55%';
             if (pStep) pStep.innerText = 'Reconstructing magic headers, chunk CRC32s, and container tables...';
@@ -2722,11 +2763,13 @@
             pLog.innerHTML += `<div class="text-blue-300">[INFO] SQLite: Aligned 4096-byte database page boundaries</div>`;
             pLog.scrollTop = pLog.scrollHeight;
           }, 300);
+          skillsTimeoutHandles.push(t1);
         }
 
         const res = await fetch('/api/execute_skills', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
+          signal: skillsAbortController.signal,
           body: JSON.stringify({
             file_ids: targetIds,
             enabled_skills: enabled.length > 0 ? enabled : ['repair_corrupt'],
@@ -2736,20 +2779,26 @@
         const data = await res.json();
         const repCount = data.repaired_count || (targetIds.length > 0 ? targetIds.length : 5);
 
-        setTimeout(() => {
+        const t2 = setTimeout(() => {
           if (pBar) pBar.style.width = '100%';
           if (pPct) pPct.innerText = '100%';
           if (pStep) pStep.innerText = 'Recovery pipeline complete!';
           if (pLog) {
             pLog.innerHTML += `<div class="text-emerald-300">[SUCCESS] Saved ${repCount} forensically repaired files to ${data.dest_dir || dest}</div>`;
           }
-          setTimeout(() => {
+          const t3 = setTimeout(() => {
             if (pModal) pModal.classList.add('hidden');
             showCompletionModal(repCount, 0, 0, data.dest_dir || dest);
           }, 450);
+          skillsTimeoutHandles.push(t3);
         }, 800);
+        skillsTimeoutHandles.push(t2);
 
       } catch (e) {
+        if (e.name === 'AbortError') {
+          // Graceful user cancellation
+          return;
+        }
         if (pModal) pModal.classList.add('hidden');
         showCompletionModal(5, 0, 0, dest);
       }
