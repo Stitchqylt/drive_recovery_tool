@@ -6,6 +6,7 @@ and routes invocations with canary rollout traffic weighting and fallbacks.
 """
 
 import os
+import sys
 import glob
 import json
 import time
@@ -135,6 +136,11 @@ class SkillRegistry:
             return False
         if manifest.id not in self._catalog:
             self._catalog[manifest.id] = {}
+        # If registering a higher version, adjust default rollout weights
+        for v, old_m in self._catalog[manifest.id].items():
+            if v != manifest.version and manifest.version > v:
+                old_m.rollout.weight = 0
+                manifest.rollout.fallback_version = v
         self._catalog[manifest.id][manifest.version] = manifest
         return True
 
@@ -147,6 +153,14 @@ class SkillRegistry:
         pattern = os.path.join(base_dir, "**", "skill-manifest.json")
         for manifest_path in glob.glob(pattern, recursive=True):
             try:
+                # Add package root to sys.path for dynamic import resolution
+                pkg_root = os.path.dirname(os.path.dirname(os.path.abspath(manifest_path)))
+                if pkg_root and pkg_root not in sys.path:
+                    sys.path.insert(0, pkg_root)
+                manifest_dir = os.path.dirname(os.path.abspath(manifest_path))
+                if manifest_dir and manifest_dir not in sys.path:
+                    sys.path.insert(0, manifest_dir)
+
                 with open(manifest_path, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 manifest = SkillManifest.from_dict(data, path=manifest_path)
