@@ -48,6 +48,9 @@ def handle_skills_cli(argv: List[str]) -> int:
 
     skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
     GLOBAL_REGISTRY.discover_directory(skills_dir)
+    ext_skills_dir = "/Users/amatuer_cyber/drive-rescue-skills/packages"
+    if os.path.exists(ext_skills_dir):
+        GLOBAL_REGISTRY.discover_directory(ext_skills_dir)
 
     subcmd = argv[0].lower() if argv else "list"
 
@@ -118,8 +121,57 @@ def handle_skills_cli(argv: List[str]) -> int:
         else:
             print(f"[X] Failed to update rollout weight for '{skill_id}'.")
             return 1
+    elif subcmd == "run":
+        if len(argv) < 3:
+            print("[!] Usage: python3 cli.py skills run <skill_id> <file_or_directory> [--dest <output_dir>]")
+            return 1
+        skill_id = argv[1]
+        target_path = os.path.abspath(argv[2])
+        dest_dir = "recovered_files/skills_output"
+        for i, a in enumerate(argv):
+            if a in ("--dest", "-d") and i + 1 < len(argv):
+                dest_dir = argv[i + 1]
+
+        manifest = GLOBAL_REGISTRY.get_skill_manifest(skill_id)
+        if not manifest:
+            print(f"[X] Skill '{skill_id}' not found in catalog.")
+            return 1
+
+        from drive_rescue.contract import SkillInput, FilePayload
+        files = []
+        if os.path.isfile(target_path):
+            files.append(FilePayload(id=1, name=os.path.basename(target_path), real_path=target_path, status="Partial"))
+        elif os.path.isdir(target_path):
+            for idx, fn in enumerate(sorted(os.listdir(target_path)), start=1):
+                fp = os.path.join(target_path, fn)
+                if os.path.isfile(fp) and not fn.startswith("."):
+                    files.append(FilePayload(id=idx, name=fn, real_path=fp, status="Partial"))
+
+        if not files:
+            print(f"[!] No valid files found at '{target_path}'.")
+            return 1
+
+        print(f"\n[*] Executing skill '{skill_id}' (v{manifest.version}) across {len(files)} file(s)...")
+        print(f"    - Target Path: {target_path}")
+        print(f"    - Destination: {dest_dir}")
+
+        inp = SkillInput(skill_id=skill_id, files=files, destination_dir=dest_dir)
+        output = GLOBAL_EXECUTOR.execute_skill(inp)
+
+        print(f"\n[+] Execution Finished:")
+        print(f"    - Success: {output.success}")
+        print(f"    - Duration: {output.metrics.duration_ms} ms")
+        print(f"    - Files Processed: {len(output.processed_files)}")
+        print("\n[*] File Results:")
+        for r in output.processed_files:
+            print(f"    • {r.original_name} -> {r.output_name} [{r.status}] ({r.bytes_recovered} bytes)")
+            for act in r.actions_taken:
+                print(f"      +-- {act}")
+        print()
+        return 0 if output.success else 1
+
     else:
-        print(f"[X] Unknown skills subcommand '{subcmd}'. Available: list, test, rollout")
+        print(f"[X] Unknown skills subcommand '{subcmd}'. Available: list, test, rollout, run")
         return 1
 
 
