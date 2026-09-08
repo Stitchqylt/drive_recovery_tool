@@ -46,9 +46,7 @@ def handle_skills_cli(argv: List[str]) -> int:
     from drive_rescue.registry import GLOBAL_REGISTRY
     from drive_rescue.runtime.executor import GLOBAL_EXECUTOR
 
-    skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
-    GLOBAL_REGISTRY.discover_directory(skills_dir)
-    ext_skills_dir = "/Users/amatuer_cyber/drive-rescue-skills/packages"
+    ext_skills_dir = os.getenv("DRIVE_RESCUE_SKILLS_DIR", "/Users/amatuer_cyber/drive-rescue-skills/packages")
     if os.path.exists(ext_skills_dir):
         GLOBAL_REGISTRY.discover_directory(ext_skills_dir)
 

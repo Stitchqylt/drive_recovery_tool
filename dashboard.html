@@ -681,18 +681,30 @@
 
             <!-- Select Recovery Skillsets Grid Card -->
             <div class="ui-card p-4 sm:p-5 bg-white space-y-4">
-              <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
                 <div>
-                  <h3 class="text-sm font-extrabold text-slate-900">Select Recovery Skillsets</h3>
-                  <p class="text-[11px] text-slate-500">Choose the skills that match the issues detected in your files. You can select multiple.</p>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-sm font-extrabold text-slate-900">Select Recovery Skillsets</h3>
+                    <span id="skillsLiveBadgeCount" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span id="liveSkillsCountTxt">1 Live Engine Connected</span>
+                    </span>
+                  </div>
+                  <p class="text-[11px] text-slate-500">Only verified, connected engines in your Skills Lab can process files. Offline skills require plugin activation.</p>
                 </div>
-                <button onclick="applyAiRecommendation()" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#2563EB] font-bold text-xs border border-blue-200 transition active:scale-95 flex items-center gap-1.5 shadow-xs">
-                  <span>🪄 AI Recommend</span>
-                </button>
+                <div class="flex items-center gap-2 self-end sm:self-auto">
+                  <div class="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
+                    <button id="btnFilterConnected" onclick="setSkillsFilter('connected')" class="px-2.5 py-1 rounded-md text-[11px] transition bg-white text-slate-800 shadow-xs font-bold">Connected (<span id="countFilterConnected">1</span>)</button>
+                    <button id="btnFilterAll" onclick="setSkillsFilter('all')" class="px-2.5 py-1 rounded-md text-[11px] transition text-slate-500 hover:text-slate-800">All (10)</button>
+                  </div>
+                  <button onclick="applyAiRecommendation()" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#2563EB] font-bold text-xs border border-blue-200 transition active:scale-95 flex items-center gap-1.5 shadow-xs">
+                    <span>🪄 AI Recommend</span>
+                  </button>
+                </div>
               </div>
 
               <!-- 3x3 Grid of 10 Skills Cards -->
-              <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div id="skillsCardGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                 
                 <!-- Skill 1: Repair Corrupted Files -->
                 <div id="card_repair_corrupt" onclick="toggleSkillCard('repair_corrupt')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
@@ -708,29 +720,29 @@
                 </div>
 
                 <!-- Skill 2: Restore After Bad Backup -->
-                <div id="card_restore_backup" onclick="toggleSkillCard('restore_backup')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                <div id="card_restore_backup" onclick="toggleSkillCard('restore_backup')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
                   <div class="flex items-start justify-between">
                     <div class="flex items-center gap-2.5">
                       <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">🔄</div>
                       <span class="text-xs font-bold text-slate-900">Restore After Bad Backup</span>
                     </div>
-                    <input type="checkbox" id="skill_restore_backup" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                    <input type="checkbox" id="skill_restore_backup" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Recovers files that became corrupt or incomplete during backup.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 3: Open With Alternative Apps -->
-                <div id="card_open_alt" onclick="toggleSkillCard('open_alt')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                <div id="card_open_alt" onclick="toggleSkillCard('open_alt')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
                   <div class="flex items-start justify-between">
                     <div class="flex items-center gap-2.5">
                       <div class="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">🖥️</div>
                       <span class="text-xs font-bold text-slate-900">Open With Alternative Apps</span>
                     </div>
-                    <input type="checkbox" id="skill_open_alt" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                    <input type="checkbox" id="skill_open_alt" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Uses alternative compatible applications to open and recover files.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 4: File Type Conversion -->
@@ -743,20 +755,20 @@
                     <input type="checkbox" id="skill_type_conversion" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Converts files to a compatible format so they can be opened.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Optional</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 5: Identify Unknown File Types -->
-                <div id="card_unknown_type" onclick="toggleSkillCard('unknown_type')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                <div id="card_unknown_type" onclick="toggleSkillCard('unknown_type')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
                   <div class="flex items-start justify-between">
                     <div class="flex items-center gap-2.5">
                       <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">📑</div>
                       <span class="text-xs font-bold text-slate-900">Identify Unknown File Types</span>
                     </div>
-                    <input type="checkbox" id="skill_unknown_type" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                    <input type="checkbox" id="skill_unknown_type" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Detects and identifies unknown or unrecognized file types.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 6: Rebuild Incomplete Files -->
@@ -769,7 +781,7 @@
                     <input type="checkbox" id="skill_rebuild_incomplete" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Attempts to reconstruct incomplete or partially written files.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Optional</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 7: Data Extraction (Raw Recovery) -->
@@ -782,20 +794,20 @@
                     <input type="checkbox" id="skill_raw_extract" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Extracts raw data from files when standard methods fail.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Advanced</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 8: Virus Scan -->
-                <div id="card_virus_scan" onclick="toggleSkillCard('virus_scan')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5">
+                <div id="card_virus_scan" onclick="toggleSkillCard('virus_scan')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5">
                   <div class="flex items-start justify-between">
                     <div class="flex items-center gap-2.5">
                       <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center text-xs font-bold">🛡️</div>
                       <span class="text-xs font-bold text-slate-900">Virus Scan</span>
                     </div>
-                    <input type="checkbox" id="skill_virus_scan" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                    <input type="checkbox" id="skill_virus_scan" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Scans recovered files for malware and potential threats.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 9: Secure & Encrypt -->
@@ -808,23 +820,25 @@
                     <input type="checkbox" id="skill_secure_encrypt" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Encrypts recovered files for secure storage and transfer.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Optional</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
                 <!-- Skill 10: Smart Sort & Organize -->
-                <div id="card_smart_sort" onclick="toggleSkillCard('smart_sort')" class="p-3 rounded-xl border border-blue-200 bg-blue-50/20 hover:border-blue-400 cursor-pointer transition flex flex-col justify-between gap-2.5 md:col-span-2 lg:col-span-1">
+                <div id="card_smart_sort" onclick="toggleSkillCard('smart_sort')" class="p-3 rounded-xl border border-slate-200 bg-white hover:border-slate-300 cursor-pointer transition flex flex-col justify-between gap-2.5 md:col-span-2 lg:col-span-1">
                   <div class="flex items-start justify-between">
                     <div class="flex items-center gap-2.5">
                       <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">📁</div>
                       <span class="text-xs font-bold text-slate-900">Smart Sort &amp; Organize</span>
                     </div>
-                    <input type="checkbox" id="skill_smart_sort" checked onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
+                    <input type="checkbox" id="skill_smart_sort" onclick="event.stopPropagation(); syncSkillCheckbox()" class="rounded text-blue-600 focus:ring-0">
                   </div>
                   <p class="text-[10px] text-slate-500 leading-tight">Automatically organizes recovered files by type, folder, date, and content.</p>
-                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">Recommended</span></div>
+                  <div><span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">Plugin Needed</span></div>
                 </div>
 
               </div>
+
+            </div>
 
             </div>
 
@@ -2471,7 +2485,27 @@
       updateSkillCardsAvailability();
     }
 
+    let currentSkillsFilter = 'connected'; // Default to showing only verified connected skills
+
+    function setSkillsFilter(mode) {
+      currentSkillsFilter = mode;
+      const btnConn = document.getElementById('btnFilterConnected');
+      const btnAll = document.getElementById('btnFilterAll');
+      if (btnConn && btnAll) {
+        if (mode === 'connected') {
+          btnConn.className = "px-2.5 py-1 rounded-md text-[11px] transition bg-white text-slate-800 shadow-xs font-bold";
+          btnAll.className = "px-2.5 py-1 rounded-md text-[11px] transition text-slate-500 hover:text-slate-800";
+        } else {
+          btnAll.className = "px-2.5 py-1 rounded-md text-[11px] transition bg-white text-slate-800 shadow-xs font-bold";
+          btnConn.className = "px-2.5 py-1 rounded-md text-[11px] transition text-slate-500 hover:text-slate-800";
+        }
+      }
+      updateSkillCardsAvailability();
+    }
+
     function updateSkillCardsAvailability() {
+      let liveCount = 0;
+
       allSkillIds.forEach(id => {
         const canonical = skillIdToCanonical[id] || id;
         const card = document.getElementById(`card_${id}`);
@@ -2480,6 +2514,8 @@
         const isLive = health && health.status === "OK" && health.circuit_breaker_state !== "OPEN";
 
         if (!card) return;
+
+        if (isLive) liveCount++;
 
         let badgeContainer = card.querySelector('.skill-badge-container');
         if (!badgeContainer) {
@@ -2492,7 +2528,6 @@
 
         if (!isLive) {
           card.setAttribute('data-live', 'false');
-          card.className = "p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 opacity-45 cursor-not-allowed select-none transition flex flex-col justify-between gap-2.5 grayscale";
           if (chk) {
             chk.disabled = true;
             chk.checked = false;
@@ -2500,13 +2535,20 @@
           if (badgeContainer) {
             badgeContainer.innerHTML = `<span class="px-2 py-0.5 rounded text-[9px] font-bold bg-slate-200 text-slate-500 border border-slate-300">🔴 Offline / Plugin Needed</span>`;
           }
+          if (currentSkillsFilter === 'connected') {
+            card.classList.add('hidden');
+          } else {
+            card.classList.remove('hidden');
+            card.className = "p-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/70 opacity-45 cursor-not-allowed select-none transition flex flex-col justify-between gap-2.5 grayscale";
+          }
         } else {
           card.setAttribute('data-live', 'true');
+          card.classList.remove('hidden');
           if (chk) {
             chk.disabled = false;
           }
           if (badgeContainer) {
-            const ver = health.version ? `v${health.version}` : 'v1.0';
+            const ver = health.version ? `v${health.version}` : 'v2.0';
             const isRec = recommendedSkillIds.includes(id);
             if (isRec) {
               badgeContainer.innerHTML = `<span class="px-2 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 w-fit"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>Live ${ver} • Recommended</span>`;
@@ -2517,6 +2559,21 @@
           syncSkillCardVisual(id, chk ? chk.checked : false);
         }
       });
+
+      // Update counters & badge in header
+      const countEl = document.getElementById('countFilterConnected');
+      if (countEl) countEl.innerText = liveCount;
+      const countTxtEl = document.getElementById('liveSkillsCountTxt');
+      if (countTxtEl) countTxtEl.innerText = `${liveCount} Live Engine${liveCount === 1 ? '' : 's'} Connected`;
+      const badgeCountEl = document.getElementById('skillsLiveBadgeCount');
+      if (badgeCountEl) {
+        if (liveCount > 0) {
+          badgeCountEl.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1";
+        } else {
+          badgeCountEl.className = "px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1";
+        }
+      }
+
       syncSkillCheckbox();
     }
 

@@ -88,13 +88,12 @@ log_session("Direct I/O Subsystem: Non-blocking asynchronous sector reader loade
 log_session("NTFS & MFT Parser: Fixup array (USA) and cluster chain validator ready.", "INFO")
 
 # Dynamic discovery of decoupled recovery skills catalog
-_skills_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "skills")
-_discovered_skills_count = GLOBAL_REGISTRY.discover_directory(_skills_dir)
-_ext_skills_dir = "/Users/amatuer_cyber/drive-rescue-skills/packages"
+# Only discover live standalone skills from the Skills Brain packages directory
+_ext_skills_dir = os.getenv("DRIVE_RESCUE_SKILLS_DIR", "/Users/amatuer_cyber/drive-rescue-skills/packages")
+_discovered_skills_count = 0
 if os.path.exists(_ext_skills_dir):
-    _ext_count = GLOBAL_REGISTRY.discover_directory(_ext_skills_dir)
-    _discovered_skills_count += _ext_count
-log_session(f"Recovery Skills Engine: Discovered & registered {_discovered_skills_count} decoupled skills in catalog.", "INFO")
+    _discovered_skills_count = GLOBAL_REGISTRY.discover_directory(_ext_skills_dir)
+log_session(f"Recovery Skills Engine: Discovered & registered {_discovered_skills_count} live plugged-in skill(s) from Skills Lab.", "INFO")
 
 log_session(
     "Web Studio HTTP Server: Active on http://127.0.0.1:8080. Live telemetry stream ready.",
