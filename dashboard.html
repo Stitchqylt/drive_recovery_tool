@@ -901,6 +901,17 @@
                 </div>
               </div>
 
+              <!-- Plain English Explanation Callout -->
+              <div id="demoPlainEnglishExplain" class="p-3 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-950 flex items-start gap-2.5">
+                <span class="text-base shrink-0">💡</span>
+                <div class="space-y-0.5">
+                  <div class="font-extrabold text-blue-900">What is happening in plain English?</div>
+                  <div id="demoPlainEnglishText" class="text-slate-700 leading-relaxed text-[11px]">
+                    The PDF document was missing its internal Table of Contents (xref table), so apps like Apple Preview and Adobe Acrobat refused to open it. The repair engine scanned the 3 internal pages, synthesized a healthy xref table (+144 bytes), and restored the file to a 100% valid document.
+                  </div>
+                </div>
+              </div>
+
               <!-- Side-by-Side Hex Dump Comparison -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 <!-- Left: Corrupted Source Hex -->
@@ -2990,13 +3001,27 @@
         if (hexOrigEl) hexOrigEl.innerText = data.original_hex || "No hex data";
         if (hexRepEl) hexRepEl.innerText = data.repaired_hex || "No hex data";
 
+        const plainTxtEl = document.getElementById('demoPlainEnglishText');
         if (corruptBadgeEl) {
-          if (scenario === 'jpeg') corruptBadgeEl.innerText = "Stripped SOI (0xFFD8) & Bad Markers";
-          else if (scenario === 'png') corruptBadgeEl.innerText = "Corrupt Signature & Bad CRC32";
-          else if (scenario === 'zip') corruptBadgeEl.innerText = "Missing Central Dir / Broken EOCD";
-          else if (scenario === 'pdf') corruptBadgeEl.innerText = "Missing xref Table & Catalog";
-          else if (scenario === 'sqlite') corruptBadgeEl.innerText = "Zeroed Header & Misaligned Pages";
-          else corruptBadgeEl.innerText = "Corrupted Container";
+          if (scenario === 'jpeg') {
+            corruptBadgeEl.innerText = "Stripped SOI (0xFFD8) & Bad Markers";
+            if (plainTxtEl) plainTxtEl.innerText = "The JPEG photo was missing its start-of-image marker (0xFFD8) and color quantization tables. The repair engine stripped the corrupted preamble and injected standard JPEG headers. The photo is now 100% readable in Apple Preview/Photos.";
+          } else if (scenario === 'png') {
+            corruptBadgeEl.innerText = "Corrupt Signature & Bad CRC32";
+            if (plainTxtEl) plainTxtEl.innerText = "The PNG image had a damaged signature and corrupted chunk CRC32 checksums. The repair engine reconstructed the 8-byte PNG header and recalculated the checksums so the graphic displays cleanly.";
+          } else if (scenario === 'zip') {
+            corruptBadgeEl.innerText = "Missing Central Dir / Broken EOCD";
+            if (plainTxtEl) plainTxtEl.innerText = "The Excel workbook (.xlsx is a ZIP container) had a broken Central Directory footer. The repair engine rebuilt the directory index so Excel can unpack and open all spreadsheets without error.";
+          } else if (scenario === 'pdf') {
+            corruptBadgeEl.innerText = "Missing xref Table & Catalog";
+            if (plainTxtEl) plainTxtEl.innerText = "The PDF was missing its internal Table of Contents (xref table), so apps like Adobe Acrobat and Apple Preview refused to open it. The repair engine scanned the internal pages, synthesized a healthy xref table (+144 bytes), and restored the file to a 100% valid document.";
+          } else if (scenario === 'sqlite') {
+            corruptBadgeEl.innerText = "Zeroed Header & Misaligned Pages";
+            if (plainTxtEl) plainTxtEl.innerText = "The SQLite database header was zeroed out by disk corruption. The repair engine restored the 100-byte SQLite magic header and aligned the 4096-byte database pages so queries and tables work immediately.";
+          } else {
+            corruptBadgeEl.innerText = "Corrupted Container";
+            if (plainTxtEl) plainTxtEl.innerText = "The corrupted container was forensically analyzed and reconstructed.";
+          }
         }
 
         if (repairedBadgeEl) {
