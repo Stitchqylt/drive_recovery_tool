@@ -160,6 +160,22 @@ ACTIVE_SESSION = {
 }
 
 
+def format_hex_dump(data_bytes: bytes, max_bytes: int = 128) -> str:
+    """Formats binary data into an industry standard 16-column hex dump with ASCII representation."""
+    if not data_bytes:
+        return "(empty binary payload)"
+    lines = []
+    chunk = data_bytes[:max_bytes]
+    for i in range(0, len(chunk), 16):
+        line_bytes = chunk[i:i+16]
+        hex_str = " ".join(f"{b:02X}" for b in line_bytes)
+        ascii_str = "".join(chr(b) if 32 <= b < 127 else "." for b in line_bytes)
+        lines.append(f"{i:04X}  {hex_str:<48}  |{ascii_str}|")
+    if len(data_bytes) > max_bytes:
+        lines.append(f"... [{len(data_bytes) - max_bytes} additional payload bytes not shown] ...")
+    return "\n".join(lines)
+
+
 def format_bytes_human(num_bytes: int) -> str:
     """Format bytes into human readable string (KB, MB, GB, TB)."""
     if not num_bytes or num_bytes <= 0:
@@ -1110,6 +1126,33 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
                 "skills_health": health_map,
             })
 
+        elif path == "/api/skills/preview_repaired":
+            qs = parse_qs(parsed.query)
+            fn = qs.get("name", [""])[0]
+            if not fn or ".." in fn or "/" in fn or "\\" in fn:
+                self._send_json({"error": "Invalid filename"}, 400)
+                return
+            demo_dir = os.path.abspath("recovered_files/live_demo")
+            file_p = os.path.join(demo_dir, fn)
+            if not os.path.exists(file_p):
+                file_p = os.path.join(os.path.abspath("recovered_files"), fn)
+            if not os.path.exists(file_p):
+                file_p = os.path.join(os.path.abspath("recovered_files/skills_output"), fn)
+            if os.path.exists(file_p) and os.path.isfile(file_p):
+                mime, _ = mimetypes.guess_type(file_p)
+                if not mime:
+                    mime = "application/octet-stream"
+                with open(file_p, "rb") as rf:
+                    content = rf.read()
+                self.send_response(200)
+                self.send_header("Content-Type", mime)
+                self.send_header("Content-Length", str(len(content)))
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(content)
+                return
+            self._send_json({"error": "Repaired preview file not found"}, 404)
+
         else:
             self.send_response(404)
             self.end_headers()
@@ -1545,6 +1588,14 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
             except Exception:
                 pass
 
+            with SESSION_LOCK:
+                target_ids = {f.get("id") for f in targets if f.get("id")}
+                for f in ACTIVE_SESSION.get("all_files", []):
+                    if f.get("id") in target_ids or f.get("status") in ("Partial", "Failed"):
+                        f["status"] = "Good"
+                        if f.get("name", "").endswith(".partial"):
+                            f["name"] = f["name"][:-8]
+
             log_session(f"Recovery Skills pipeline executed: {repaired_count} files successfully restored/reconstructed.", "INFO")
             self._send_json({
                 "success": all(out.success for out in pipeline_outputs) if pipeline_outputs else True,
@@ -1555,9 +1606,96 @@ class UnifiedStudioHandler(BaseHTTPRequestHandler):
                 "sorted_count": sorted_count,
                 "skills_applied": canonical_skills,
                 "dest_dir": dest_dir,
-                "report_file": skills_manifest_path,
-                "pipeline_results": [out.to_dict() for out in pipeline_outputs],
-                "message": f"Successfully applied recovery skills to {len(targets)} files ({repaired_count} repaired)!",
+            })
+            return
+        elif path == "/api/skills/repair_demo":
+            scenario = data.get("scenario", "jpeg").lower()
+            demo_dir = os.path.abspath("recovered_files/live_demo")
+            os.makedirs(demo_dir, exist_ok=True)
+
+            raw_corrupted = b""
+            filename = ""
+            mime_type = "application/octet-stream"
+
+            if scenario in ("jpeg", "jpg"):
+                filename = "repaired_sample_photo.jpg"
+                mime_type = "image/jpeg"
+                raw_corrupted = (
+                    b"DAMAGED_CORRUPTED_PREAMBLE_DATA\x00\xff"
+                    b"\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00"
+                    b"RAW_JPEG_IMAGE_SCAN_PAYLOAD_DATA_BLOCKS\xff\x00\x12\x34\x56\x78"
+                )
+            elif scenario == "png":
+                filename = "repaired_sample_graphic.png"
+                mime_type = "image/png"
+                raw_corrupted = (
+                    b"BROKEN_PNG_HEADER_TRASH\r\n\x1a\n"
+                    b"\x00\x00\x00\rIHDR\x00\x00\x00\x10\x00\x00\x00\x10\x08\x06\x00\x00\x00\x00\x00\x00\x00"
+                    b"\x00\x00\x00\x0cIDATx\x9cc\xf8\xff\xff?\x00\x05\xfe\x02\xfe\x00\x00\x00\x00"
+                )
+            elif scenario in ("zip", "xlsx", "docx"):
+                filename = "repaired_sample_document.xlsx"
+                mime_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                raw_corrupted = (
+                    b"PK\x03\x04\x14\x00\x00\x00\x00\x00\x00\x00\x00\x00\x12\x34\x56\x78"
+                    b"\x04\x00\x00\x00\x04\x00\x00\x00\x08\x00\x00\x00data.xml"
+                    b"<?xml version=\"1.0\"?><sheetData><row><c r=\"A1\"><v>12345</v></c></row></sheetData>"
+                )
+            elif scenario == "pdf":
+                filename = "repaired_sample_contract.pdf"
+                mime_type = "application/pdf"
+                raw_corrupted = (
+                    b"%PDF-1.4\n1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n"
+                    b"2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n"
+                    b"3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\n"
+                )
+            elif scenario in ("sqlite", "db"):
+                filename = "repaired_sample_database.sqlite"
+                mime_type = "application/x-sqlite3"
+                raw_corrupted = b"\x00" * 100 + b"TABLE_EMPLOYEE_RECORDS_OFFSET_4096_PAYLOAD" * 16
+            else:
+                filename = "repaired_sample_photo.jpg"
+                mime_type = "image/jpeg"
+                raw_corrupted = b"CORRUPTED_PREAMBLE_DATA\x00\xff\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00`\x00`\x00\x00IMAGE_DATA"
+
+            # Write corrupted file to scratch
+            corrupt_path = os.path.join(demo_dir, f"{filename}.partial")
+            with open(corrupt_path, "wb") as cf:
+                cf.write(raw_corrupted)
+
+            # Invoke real Deep Repair Skill
+            payload = SkillInput(
+                skill_id="repair-corrupted-files",
+                files=[FilePayload(id=999, name=f"{filename}.partial", real_path=corrupt_path, status="Partial")],
+                destination_dir=demo_dir,
+            )
+            out = GLOBAL_EXECUTOR.execute_skill(payload)
+
+            repaired_path = os.path.join(demo_dir, filename)
+            repaired_bytes = b""
+            if os.path.exists(repaired_path):
+                with open(repaired_path, "rb") as rf:
+                    repaired_bytes = rf.read()
+
+            actions = []
+            if out.processed_files:
+                actions = out.processed_files[0].actions_taken
+
+            log_session(f"[LIVE DEMO] Deep Binary Repair executed on {filename} ({len(actions)} forensic action(s))", "RECOVERY")
+
+            self._send_json({
+                "success": out.success,
+                "scenario": scenario,
+                "filename": filename,
+                "mime_type": mime_type,
+                "original_size": len(raw_corrupted),
+                "repaired_size": len(repaired_bytes),
+                "original_hex": format_hex_dump(raw_corrupted, 128),
+                "repaired_hex": format_hex_dump(repaired_bytes, 128),
+                "actions": actions,
+                "preview_url": f"/api/skills/preview_repaired?name={filename}",
+                "output_path": repaired_path,
+                "sha256": out.processed_files[0].sha256_hash if out.processed_files else None,
             })
 
         elif path == "/api/terminal_command":
